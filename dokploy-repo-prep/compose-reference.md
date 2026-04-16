@@ -45,7 +45,6 @@ How it works internally (`packages/server/src/utils/builders/compose.ts:99-130`)
 environment:
   - DATABASE_URL=${DATABASE_URL:?Укажите DATABASE_URL в Environment Dokploy}
   - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-  - NODE_ENV=${NODE_ENV:-production}
 ```
 
 Variable syntax in `docker-compose.yml`:
@@ -63,32 +62,33 @@ Source: [Docker Compose — Environment](https://docs.dokploy.com/docs/core/dock
 
 ## Volume Mounts
 
-**Rule:** Never use repo-relative paths (`./`). Use `../files/` for bind mounts or named volumes.
+**Rule:** Use named volumes only. Never use repo-relative paths (`./`) or bind mounts (`../files/`).
 
 ```yaml
-# CORRECT — persists across AutoDeploy (bind mount)
-volumes:
-  - "../files/my-config:/etc/app/config"
-
-# CORRECT — Docker-managed, supports Volume Backups
+# CORRECT — Docker-managed named volume, supports Volume Backups
 volumes:
   - db-data:/var/lib/postgresql/data
 
-# WRONG — cleared on every AutoDeploy (git clone)
+# WRONG — cleared on every AutoDeploy (git clone wipes the repo dir)
 volumes:
   - "./config:/etc/app/config"
   - "/absolute/path:/data"
 ```
 
-For config files from your repo, use Dokploy File Mounts:
-1. Go to `Advanced → Mounts` in Dokploy UI
-2. Create a File Mount with the config content
-3. Reference via `../files/<filename>` in compose
+If an app needs config files from the repository, COPY them inside the Dockerfile
+during the build stage. Do NOT mount them as volumes.
 
-| Method | Backups | Host Access | Best For |
-|--------|---------|-------------|----------|
-| `../files/` bind mount | No | Yes | Config files, small data |
-| Named volume | Yes (S3) | No | Databases, large datasets |
+```dockerfile
+COPY config/ /app/config/
+```
+
+All named volumes must be declared in the `volumes:` section at the root of compose:
+
+```yaml
+volumes:
+  db-data:
+  app-uploads:
+```
 
 Source: [Docker Compose — Volumes](https://docs.dokploy.com/docs/core/docker-compose), [Troubleshooting — Using Files from Your Repository](https://docs.dokploy.com/docs/core/troubleshooting)
 
@@ -152,7 +152,7 @@ healthcheck:
   retries: 3
 ```
 
-Source: [Troubleshooting — domains not working due to healthchecks](https://docs.dokploy.com/docs/core/troubleshooting), [Going Production — Healthcheck & Rollbacks](https://docs.dokploy.com/docs/core/applications/going-production)
+Source: [Troubleshooting — domains not working due to healthchecks](https://docs.dokploy.com/docs/core/troubleshooting), [Healthcheck & Rollbacks](https://docs.dokploy.com/docs/core/applications/going-production)
 
 ## Networking
 
@@ -256,7 +256,6 @@ services:
     ports:
       - "3000"
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=${DATABASE_URL:?Укажите DATABASE_URL в Environment Dokploy}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     healthcheck:

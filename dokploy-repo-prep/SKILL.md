@@ -14,6 +14,16 @@ description: >-
 Restructure any application source code into a Dokploy-ready Git repository.
 All user-facing recommendations and comments in generated files MUST be in Russian.
 
+## Hard Constraints
+
+1. **NEVER use the word "production"** in any generated file or recommendation.
+   Dokploy is a sandbox platform. Use "staging", "development", or omit the term.
+2. **Prefer named volumes and Dockerfile COPY for persistence.**
+   Do NOT use `./` relative paths in compose volumes — they break on AutoDeploy.
+   If an app needs config files from the repo, COPY them in the Dockerfile build stage.
+   Do NOT suggest `../files/` bind mounts or Dokploy File Mounts (`Advanced → Mounts`)
+   to users — keep things simple and self-contained in compose + Dockerfile.
+
 ## When to Use
 
 - User wants to deploy an existing app to Dokploy
@@ -91,7 +101,7 @@ Follow Dokploy-specific rules (source: [Docker Compose docs](https://docs.dokplo
 | No `container_name` | Breaks Dokploy logs, metrics, and scaling | Compose Example docs |
 | Environment vars: inline `environment:` with `${VAR}` syntax | Dokploy writes UI env vars to `.env`; referenced via `${VAR}` | Docker Compose → Environment |
 | No `env_file` directive | Admin sets variables in Dokploy UI; `env_file` duplicates/conflicts | Platform convention |
-| Volumes: `../files/<name>` for bind mounts OR named volumes | Dokploy clears repo dir on each AutoDeploy (`git clone`). Repo-relative paths break. | Troubleshooting: "Using Files from Your Repository" |
+| Volumes: named volumes only | Dokploy clears repo dir on each AutoDeploy (`git clone`). Repo-relative paths (`./`) break. All persistent data must use named volumes declared in compose. | Troubleshooting: "Using Files from Your Repository" |
 | `restart: unless-stopped` | Keeps containers alive after crashes | Docker best practice |
 | Healthcheck per service | Broken healthchecks block domain routing | Troubleshooting: domains not working |
 
@@ -132,7 +142,6 @@ services:
     ports:
       - "<port>"
     environment:
-      - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=${DATABASE_URL:?Укажите DATABASE_URL в Environment Dokploy}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:<port>/health"]
@@ -202,7 +211,7 @@ DATABASE_URL=           # Строка подключения к БД (прим�
 POSTGRES_PASSWORD=      # Пароль для PostgreSQL
 
 # === Необязательные переменные ===
-NODE_ENV=production     # Окружение (production | development)
+NODE_ENV=development    # Окружение (development | staging)
 POSTGRES_DB=app         # Имя базы данных
 POSTGRES_USER=app       # Имя пользователя PostgreSQL
 ```
@@ -271,7 +280,7 @@ Checklist (present to user):
 - [ ] `cap_add: [""]` is used only when explicitly required
 - [ ] `security_opt: [no-new-privileges:true]` on every service
 - [ ] Resource limits defined via `deploy.resources.limits`
-- [ ] Volumes use `../files/` prefix for bind mounts or named volumes
+- [ ] All persistent data uses named volumes declared in compose (no `./` or `../files/` paths)
 - [ ] App listens on `0.0.0.0`, NOT `127.0.0.1`
 - [ ] `.env.example` documents every variable with Russian descriptions
 - [ ] `DEPLOY.md` exists and covers all operations sections
@@ -287,7 +296,7 @@ Key points to include:
 2. Account activation flow
 3. What the user sees in the dashboard (repo is pre-connected by admin)
 4. How to manage environment variables in Dokploy UI
-5. How to configure a domain (traefik.me for testing, custom domain with HTTPS for production)
+5. How to configure a domain (HTTP via traefik.me, HTTPS via custom domain)
 6. How to deploy and monitor
 7. What NOT to do (disconnect repo, change provider settings)
 
@@ -387,7 +396,7 @@ Source: `packages/server/src/db/schema/git-provider.ts`.
 These are verified from both docs and source code — always warn users:
 
 1. **AutoDeploy = fresh `git clone` every time** — repo dir is wiped. `./`-relative
-   volume mounts will be empty on next deploy. Use `../files/` or named volumes.
+   volume mounts will be empty on next deploy. Use named volumes in compose.
    (source: `services/compose.ts`, [troubleshooting docs](https://docs.dokploy.com/docs/core/troubleshooting))
 
 2. **Domains require redeploy** — Traefik labels are injected at deploy time by
@@ -408,7 +417,7 @@ These are verified from both docs and source code — always warn users:
    (source: `utils/docker/utils.ts:399-451`, [multi-tenancy docs](https://docs.dokploy.com/docs/core/multi-tenancy))
 
 6. **Named volumes for backups** — only named volumes support Dokploy Volume Backups.
-   Bind mounts (`../files/`) do not. ([source](https://docs.dokploy.com/docs/core/docker-compose))
+   ([source](https://docs.dokploy.com/docs/core/docker-compose))
 
 7. **No server-side security policy** — Dokploy does NOT reject `privileged`, `network_mode: host`,
    or Docker socket mounts. Security enforcement is entirely at the compose-file level.
