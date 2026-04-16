@@ -67,7 +67,6 @@ Requirements (source: [Dokploy Build Type docs](https://docs.dokploy.com/docs/co
 5. **Listen on `0.0.0.0`** — NOT `127.0.0.1` (source: [Troubleshooting](https://docs.dokploy.com/docs/core/troubleshooting))
 6. **HEALTHCHECK instruction** — `curl` or `wget` based check on the app port
 
-
 Template:
 
 ```dockerfile
@@ -112,23 +111,9 @@ Follow Dokploy-specific rules (source: [Docker Compose docs](https://docs.dokplo
 | No `privileged: true` | Prevents container escape |
 | No `network_mode: host` | Prevents port collisions and sniffing |
 | No bind-mounting Docker socket | Prevents host takeover |
-| `cap_drop: ["ALL"]` | Drop all Linux capabilities by default |
-| `cap_add: ["NET_BIND_SERVICE"]` only when required | Allow network bind for privileged ports if app explicitly needs it |
-| `read_only: true` where possible | Immutable root filesystem |
+| No `cap_add` unless strictly required | Minimize Linux capabilities |
 | `security_opt: [no-new-privileges:true]` | Prevent privilege escalation |
 | Resource limits via `deploy.resources.limits` | Prevent noisy-neighbor on shared host |
-| `tmpfs` for writable temp dirs | Limit write surface |
-
-
-## Capability Hardening
-
-Always drop ALL `cap_drop: ["ALL"]` capabilities and add only what is explicitly required at runtime.
-
-- [ ] `NET_BIND_SERVICE` is added only when the app must bind to ports < 1024
-- [ ] `NET_RAW` is added only when the app requires raw sockets
-- [ ] `NET_ADMIN` is added only when the app manages network interfaces
-- [ ] `SYS_PTRACE` is added only when the app requires process tracing
-- [ ] `SETUID` / `SETGID` is added only when the app drops privileges at startup
 
 **Template:**
 
@@ -149,15 +134,8 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    read_only: true
     security_opt:
       - no-new-privileges:true
-    tmpfs:
-      - /tmp
     deploy:
       resources:
         limits:
@@ -185,8 +163,6 @@ If the app needs a database, add it as a second service with a named volume:
       interval: 30s
       timeout: 5s
       retries: 3
-    cap_drop:
-      - ALL
     volumes:
       - db-data:/var/lib/postgresql/data
     security_opt:
@@ -276,8 +252,6 @@ Checklist (present to user):
 - [ ] Dockerfile runs as non-root user
 - [ ] Healthcheck defined for every service
 - [ ] No `privileged`, `network_mode: host`, or Docker socket mounts
-- [ ] `cap_drop: ["ALL"]` is set on every service
-- [ ] `cap_add: [""]` is used only when explicitly required
 - [ ] `security_opt: [no-new-privileges:true]` on every service
 - [ ] Resource limits defined via `deploy.resources.limits`
 - [ ] All persistent data uses named volumes declared in compose (no `./` or `../files/` paths)

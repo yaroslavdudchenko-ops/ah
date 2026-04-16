@@ -188,12 +188,6 @@ services:
     security_opt:
       - no-new-privileges:true
 
-    # Immutable root filesystem — write only to explicitly mounted paths
-    read_only: true
-    tmpfs:
-      - /tmp
-      - /var/run
-
     # Resource limits — prevent noisy-neighbor
     deploy:
       resources:
@@ -267,11 +261,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    read_only: true
     security_opt:
       - no-new-privileges:true
-    tmpfs:
-      - /tmp
     deploy:
       resources:
         limits:
