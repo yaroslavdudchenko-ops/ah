@@ -15,17 +15,6 @@ ports:
 # WRONG — host binding causes conflicts with other tenants
 ports:
   - "3000:3000"
-
-# WRONG — for Docker Stack use expose instead of ports
-ports:
-  - "3000"
-```
-
-For Docker Stack (Swarm mode), use `expose` instead of `ports`:
-
-```yaml
-expose:
-  - "3000"
 ```
 
 Source: [Troubleshooting — Docker Compose Domain Not Working](https://docs.dokploy.com/docs/core/troubleshooting)
@@ -161,7 +150,7 @@ Source: [Troubleshooting — domains not working due to healthchecks](https://do
 How it works internally (`packages/server/src/utils/builders/compose.ts:56-58`):
 
 When Isolated Deployments is enabled:
-1. Dokploy runs `docker network create --attachable <appName>` (or `--driver overlay` for Stack)
+1. Dokploy runs `docker network create --attachable <appName>`
 2. `addDomainToCompose` calls `randomizeDeployableSpecificationFile` which prefixes
    all service names with `appName` and optionally suffixes volumes
 3. After compose up, runs `docker network connect <appName> $(docker ps --filter "name=dokploy-traefik" -q)`
@@ -180,24 +169,6 @@ Source: [Isolated Deployments](https://docs.dokploy.com/docs/core/docker-compose
 ## Security Hardening (Multi-Tenant Sandbox)
 
 These rules ensure tenant isolation on a shared Dokploy instance.
-
-```yaml
-services:
-  app:
-    # Prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-
-    # Resource limits — prevent noisy-neighbor
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 128M
-```
 
 **Never allow in a sandbox environment:**
 
@@ -261,16 +232,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 128M
 
   db:
     image: postgres:16-alpine
@@ -288,13 +249,6 @@ services:
       retries: 3
     volumes:
       - db-data:/var/lib/postgresql/data
-    security_opt:
-      - no-new-privileges:true
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
 
 volumes:
   db-data:

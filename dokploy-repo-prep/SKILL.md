@@ -2,11 +2,13 @@
 name: dokploy-repo-prep
 description: >-
   Prepare a Git repository for deployment on Dokploy (Docker Compose mode) with
-  multi-stage Dockerfile, secure docker-compose.yml, environment variable
-  templates, and supporting files. Outputs recommendations in Russian. Use when
-  the user wants to deploy an app to Dokploy, prepare a repo for Dokploy,
-  create a Dockerfile or docker-compose.yml for Dokploy, or onboard onto the
-  Dokploy platform.
+  best-practice Dockerfile, docker-compose.yml, environment variable templates,
+  and supporting files. Outputs recommendations in Russian. Use when the user
+  wants to deploy an app to Dokploy, prepare a repo for Dokploy, create a
+  Dockerfile or docker-compose.yml for Dokploy, or onboard onto the Dokploy
+  platform. Также срабатывает на: задеплоить приложение в Dokploy,
+  подготовить репозиторий для Dokploy, создать Dockerfile для Dokploy,
+  настроить docker-compose для Dokploy, онбординг в Dokploy.
 ---
 
 # Dokploy Repository Preparation
@@ -18,7 +20,9 @@ All user-facing recommendations and comments in generated files MUST be in Russi
 
 1. **NEVER use the word "production"** in any generated file or recommendation.
    Dokploy is a sandbox platform. Use "staging", "development", or omit the term.
-2. **Prefer named volumes and Dockerfile COPY for persistence.**
+2. **Dockerfile must follow official Docker best practices.**
+   All generated Dockerfiles must comply with [Best practices for writing Dockerfiles](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/) from Docker documentation. When in doubt, consult the source.
+3. **Prefer named volumes and Dockerfile COPY for persistence.**
    Do NOT use `./` relative paths in compose volumes — they break on AutoDeploy.
    If an app needs config files from the repo, COPY them in the Dockerfile build stage.
    Do NOT suggest `../files/` bind mounts or Dokploy File Mounts (`Advanced → Mounts`)
@@ -26,10 +30,11 @@ All user-facing recommendations and comments in generated files MUST be in Russi
 
 ## When to Use
 
-- User wants to deploy an existing app to Dokploy
-- User asks to "prepare repo for Dokploy" or "сделать репозиторий для Dokploy"
-- User needs a Dockerfile + docker-compose.yml for a Dokploy sandbox
-- User asks how to start using Dokploy (onboarding)
+- User wants to deploy an existing app to Dokploy / Пользователь хочет задеплоить приложение в Dokploy
+- User asks to "prepare repo for Dokploy" / «подготовить репозиторий для Dokploy»
+- User needs a Dockerfile + docker-compose.yml for Dokploy / Нужен Dockerfile и docker-compose.yml для Dokploy
+- User asks how to start using Dokploy (onboarding) / Как начать работу с Dokploy (онбординг)
+- User asks to create or fix a Dockerfile for Dokploy / Создать или исправить Dockerfile для Dokploy
 
 ## Workflow
 
@@ -58,7 +63,9 @@ Identify:
 
 ### Step 2: Generate Dockerfile
 
-Requirements (source: [Dokploy Build Type docs](https://docs.dokploy.com/docs/core/applications/build-type)):
+Follow [official Dockerfile best practices](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/) — layer caching, minimal layers, pinned base image tags, `.dockerignore`, non-root user, multi-stage builds.
+
+Dokploy-specific requirements (source: [Dokploy Build Type docs](https://docs.dokploy.com/docs/core/applications/build-type)):
 
 1. **Multi-stage build** — separate builder and runtime stages
 2. **Non-root user** — create and switch to a dedicated user in the runtime stage
@@ -112,8 +119,6 @@ Follow Dokploy-specific rules (source: [Docker Compose docs](https://docs.dokplo
 | No `network_mode: host` | Prevents port collisions and sniffing |
 | No bind-mounting Docker socket | Prevents host takeover |
 | No `cap_add` unless strictly required | Minimize Linux capabilities |
-| `security_opt: [no-new-privileges:true]` | Prevent privilege escalation |
-| Resource limits via `deploy.resources.limits` | Prevent noisy-neighbor on shared host |
 
 **Template:**
 
@@ -134,16 +139,6 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
-    security_opt:
-      - no-new-privileges:true
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 512M
-        reservations:
-          cpus: "0.25"
-          memory: 128M
 ```
 
 If the app needs a database, add it as a second service with a named volume:
@@ -165,13 +160,6 @@ If the app needs a database, add it as a second service with a named volume:
       retries: 3
     volumes:
       - db-data:/var/lib/postgresql/data
-    security_opt:
-      - no-new-privileges:true
-    deploy:
-      resources:
-        limits:
-          cpus: "0.5"
-          memory: 256M
 
 volumes:
   db-data:
@@ -225,9 +213,9 @@ Include sections:
 3. **Volumes и persistent data** — what is stored, backup strategy
 4. **Healthcheck-и** — endpoints, intervals, expected responses
 5. **Локальный запуск** — `docker compose up --build` and how to simulate Dokploy's `env -i`
-6. **Деплой в Dokploy** — reference onboarding steps, domain setup, environment variables in UI
+6. **Деплой в Dokploy** — reference onboarding steps, domain setup, environment variables in UI, enabling Isolated Deployment (Advanced), accessing container terminal (General → Open Terminal)
 7. **Troubleshooting** — common issues (port conflicts, missing env vars, volume wipe on redeploy)
-8. **Ресурсные лимиты** — CPU / memory limits from compose, recommendations for scaling
+8. **Ресурсные лимиты** — recommended CPU / memory for each service, how to request limit changes from platform admin
 
 ### Step 6: Generate README.md (Only If Missing)
 
@@ -252,13 +240,12 @@ Checklist (present to user):
 - [ ] Dockerfile runs as non-root user
 - [ ] Healthcheck defined for every service
 - [ ] No `privileged`, `network_mode: host`, or Docker socket mounts
-- [ ] `security_opt: [no-new-privileges:true]` on every service
-- [ ] Resource limits defined via `deploy.resources.limits`
 - [ ] All persistent data uses named volumes declared in compose (no `./` or `../files/` paths)
 - [ ] App listens on `0.0.0.0`, NOT `127.0.0.1`
 - [ ] `.env.example` documents every variable with Russian descriptions
 - [ ] `DEPLOY.md` exists and covers all operations sections
 - [ ] Existing `README.md` was NOT overwritten (if it was present before)
+- [ ] Dockerfile follows [official Docker best practices](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/)
 
 ### Step 8: Provide Onboarding Instructions
 
@@ -269,10 +256,12 @@ Key points to include:
 1. How to request access (IDM / admin invitation)
 2. Account activation flow
 3. What the user sees in the dashboard (repo is pre-connected by admin)
-4. How to manage environment variables in Dokploy UI
-5. How to configure a domain (HTTP via traefik.me, HTTPS via custom domain)
-6. How to deploy and monitor
-7. What NOT to do (disconnect repo, change provider settings)
+4. How to open the container terminal (General → Open Terminal)
+5. How to enable Isolated Deployment (Advanced → Enable Isolated Deployment)
+6. How to manage environment variables in Dokploy UI
+7. How to configure a domain (HTTP via traefik.me, HTTPS via custom domain)
+8. How to deploy and monitor
+9. What NOT to do (disconnect repo, change provider settings)
 
 ## Dokploy Internals (verified from source code)
 
