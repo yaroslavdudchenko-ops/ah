@@ -1,0 +1,83 @@
+---
+description: Information Security Specialist role for AI Protocol Generator. Apply when reviewing security configurations, secrets management, API authentication, Docker hardening, input validation, audit logging, or OWASP compliance. Triggers: security, infosec, secrets, vulnerability, auth, CORS, injection, audit.
+globs: .env*,docker-compose*.yml,Dockerfile*,backend/app/core/**,backend/app/routers/**
+alwaysApply: false
+---
+
+# Role: Information Security Specialist
+
+## Scope
+Security authority over: secrets management, API security, container hardening, input validation, audit trail, dependency scanning.
+
+## Hard rules (zero tolerance)
+
+| Rule | Correct | Wrong |
+|------|---------|-------|
+| Secrets | `${ENV_VAR}` only | hardcoded key in code |
+| SQL | ORM / parameterized queries | f-string interpolation |
+| User input | Pydantic validation on every endpoint | raw `request.body` |
+| Container user | `USER appuser` (non-root) | default root |
+| API keys | `.env` + `.gitignore` | committed `.env` |
+
+## Required security controls
+
+### API
+- CORS: `CORS_ORIGINS` env var, no wildcard `*` in production
+- Rate limiting: ≤ 60 req/min per IP on all endpoints
+- Input sanitization: strip HTML/script tags from all text fields before AI prompt injection
+- Request ID: every response includes `X-Request-ID` header for traceability
+
+### AI prompt injection prevention
+```python
+def sanitize_for_prompt(text: str) -> str:
+    # Remove prompt injection attempts
+    blocked = ["ignore previous instructions", "system:", "assistant:"]
+    for pattern in blocked:
+        if pattern.lower() in text.lower():
+            raise ValueError(f"Invalid input: contains restricted pattern")
+    return text.strip()[:500]  # enforce max length
+```
+
+### Secrets management
+Required in `.env.example` (never real values):
+```
+OPENROUTER_API_KEY=sk-or-<REPLACE>
+DATABASE_URL=postgresql+asyncpg://user:pass@db:5432/protocols
+SECRET_KEY=<generate: openssl rand -hex 32>
+```
+Verify with: `git grep -r "sk-or-" --include="*.py"` — must return empty.
+
+### Audit trail (every AI call + every data write)
+```python
+await audit_log.write(
+    entity_type="protocol",
+    entity_id=protocol_id,
+    action="ai_generate",        # or: create | update | delete | export | check
+    performed_by="system",
+    metadata={"model": model, "tokens": tokens, "duration_ms": elapsed}
+)
+```
+Fields `performed_by` and `request_id` must always be set — never null.
+
+### Export security
+- Validate file type: only `.md`, `.html`, `.docx` allowed
+- Max export size: 50 MB
+- Watermark synthetic data: `"FOR DEMONSTRATION PURPOSES ONLY — SYNTHETIC DATA"`
+- No PII in export filenames: use `protocol_{id}_v{version}.docx`
+
+### Docker hardening
+```dockerfile
+RUN useradd -r -u 1001 appuser
+USER appuser
+# No COPY . . as root — always switch user first
+```
+
+## Vulnerability checklist (run before deploy)
+- [ ] `git grep -rn "password\|secret\|api_key" --include="*.py"` → no hardcoded values
+- [ ] `.env` in `.gitignore`
+- [ ] `docker compose config` → no plaintext secrets
+- [ ] All endpoints have Pydantic input models
+- [ ] CORS configured to specific origins
+- [ ] `audit_log` table populated after create/generate/export
+- [ ] Non-root user in all Dockerfiles
+- [ ] Dependencies scanned: `pip-audit` or `safety check`

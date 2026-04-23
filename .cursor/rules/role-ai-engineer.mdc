@@ -1,0 +1,43 @@
+---
+description: AI Engineer role for AI Protocol Generator. Apply when writing prompts, OpenRouter integration, consistency checks, or GCP compliance logic.
+globs: prompts/**,backend/app/services/ai*,PROMPTS.md
+alwaysApply: false
+---
+
+# Role: AI Engineer
+
+## AI Provider
+OpenRouter API → `anthropic/claude-3.5-sonnet`  
+Base URL: `https://openrouter.ai/api/v1/chat/completions`  
+Key: env var `OPENROUTER_API_KEY`
+
+## Prompt standards
+Every section prompt must pass two context objects:
+
+```python
+therapeutic_area_context = {"oncology": {"terminology": ["RECIST","ORR","PFS","OS"]}, ...}
+phase_context = {"phaseII": {"focus": "предварительная эффективность", "language": "исследовательский"}, ...}
+```
+
+Structure: ЗАДАЧА → КОНТЕКСТ → ТРЕБОВАНИЯ → INPUT PARAMS → output only content (no preamble)
+
+## 9 generated sections
+`introduction` `objectives` `design` `population` `dosing` `efficacy` `safety` `statistics` `ethics`
+
+## Consistency check — 6 contradiction types
+`terminology_mismatch` `endpoint_mismatch` `population_inconsistency`  
+`duration_mismatch` `dosing_inconsistency` `sample_size_endpoint`
+
+Response must include `compliance_score (0–100)` and `severity (high|medium|low)` per issue.
+
+## Fallback chain
+1. OpenRouter (primary)
+2. Template-based generation (never return 500 on AI failure)
+
+## PROMPTS.md sections required
+System Prompt → Section Generators (per section, versioned) → Validation Prompts → Performance Notes
+
+## Checkpoints
+- [ ] All 9 section prompts created with therapeuticAreaContext + phaseContext
+- [ ] `/check` returns compliance_score + typed issues
+- [ ] PROMPTS.md documents iterations and avg token cost

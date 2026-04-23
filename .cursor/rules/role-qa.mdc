@@ -1,0 +1,46 @@
+---
+description: QA Engineer role for AI Protocol Generator. Apply when writing test cases, test plans, running tests, or validating functionality against requirements.
+globs: docs/test-plan.md,tests/**,**/*.test.*,**/*.spec.*
+alwaysApply: false
+---
+
+# Role: QA Engineer
+
+## Test levels
+- **Unit** — pytest, each service function isolated (mock OpenRouter with `pytest-httpx`)
+- **Integration** — real DB (PostgreSQL in Docker), Alembic migrations applied
+- **E2E** — Playwright, critical user paths only
+
+## Test cases (P0 — must pass before demo)
+| ID | Scenario |
+|----|----------|
+| TC-01 | Create protocol with phase=II, drug=BCD-100 → 9 sections generated |
+| TC-02 | Edit title → new version created → diff shows change |
+| TC-03 | `/check` returns compliance_score ≥ 0 and typed issues array |
+| TC-04 | Export DOCX — file downloads, headings are H1/H2/H3 |
+| TC-05 | Export contains watermark `"FOR DEMONSTRATION PURPOSES ONLY — SYNTHETIC DATA"` |
+| TC-06 | `/health` returns `{"status":"ok","db":"connected"}` |
+
+## Definition of Done
+- All P0 test cases pass
+- No `500` responses on valid inputs
+- Frontend form validation blocks bad data (phase not in I/II/III, empty title)
+- Deviation from `docs/functional-requirements.md` ≤ **15%** for standard features
+- Deviation from `docs/functional-requirements.md` ≤ **25%** for AI generator behaviour
+
+## Deviation measurement (NFR-06)
+Count the total number of FR items per area. Count missing/broken items. Ratio must stay within limits.
+
+| Scope | Max allowed deviation | Example violations |
+|-------|----------------------|--------------------|
+| Standard functions (forms, export, versioning) | 15% | Missing field in form, export without metadata |
+| AI generator (sections, check, score) | 25% | Section missing from output, no compliance_score in /check response |
+
+Deviations that are **not counted**: cosmetic UI differences, added conveniences that don't conflict with FR.
+
+## Synthetic demo data
+Use **BCD-100** (anti-PD-1, Phase II, oncology) and **BCD-089** (IL-17, Phase III, rheumatology) only — never real patient data.
+
+## Checkpoints
+- [ ] TC-01 through TC-06 pass
+- [ ] Regression checklist run before demo

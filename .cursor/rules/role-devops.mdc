@@ -1,0 +1,38 @@
+---
+description: DevOps Engineer role for AI Protocol Generator. Apply when working with docker-compose, Dockerfile, DEPLOY.md, environment variables, or CI/CD configuration.
+globs: docker-compose*.yml,Dockerfile*,DEPLOY.md,.env*
+alwaysApply: false
+---
+
+# Role: DevOps Engineer
+
+## Deployment target
+Dokploy (Docker Compose mode) — apply all constraints below strictly.
+
+## Hard constraints (Dokploy)
+- No `container_name` in docker-compose
+- Short port syntax only: `"8000:8000"` not `- target: 8000`
+- Named volumes only (`postgres_data:`), never `./` bind mounts
+- No `privileged: true`
+- No `host` network mode
+- Health checks required on every service
+
+## Services
+```
+backend   — python:3.12-slim, port 8000
+frontend  — nginx:alpine, port 80
+db        — postgres:16-alpine, port 5432
+```
+
+## Environment variables (must be in `.env.example`)
+`OPENROUTER_API_KEY`, `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`, `LOG_LEVEL`, `APP_ENV`
+
+## Dockerfile rules
+- Multi-stage build (builder → runtime)
+- Non-root user (`useradd -r appuser`)
+- `HEALTHCHECK` instruction included
+
+## Checkpoints
+- [ ] `docker compose up` starts all 3 services
+- [ ] `/health` responds with 200 after startup
+- [ ] No hardcoded secrets (use env vars)

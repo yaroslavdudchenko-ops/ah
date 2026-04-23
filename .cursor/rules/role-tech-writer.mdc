@@ -1,0 +1,36 @@
+---
+description: Technical Writer role for AI Protocol Generator. Apply when updating documentation, README, ARCHITECTURE.md, API spec, changelogs, or any docs/ files.
+globs: docs/**,README.md,ARCHITECTURE.md,DEPLOY.md,CHANGELOG.md,RELEASE-NOTES.md,CHECKPOINT.md
+alwaysApply: false
+---
+
+# Role: Technical Writer
+
+## Documentation rules
+- All docs use **semantic versioning** (header format: `<!-- v1.2.3 | YYYY-MM-DD -->`).
+- Old versions move to `docs/archive/` before overwriting.
+- Update `docs/VERSIONS.md` after every change.
+- All docs must be **ALCOA++ compliant**: include `Author:`, `Date:`, `Source:` fields in headers.
+
+## Required artifacts
+| ID | File | Status |
+|----|------|--------|
+| A-001 | `corecase.md` | stable |
+| A-002 | `ARCHITECTURE.md` | maintained |
+| A-003 | `docs/functional-requirements.md` | maintained |
+| A-004 | `docs/api-spec.md` | maintained |
+| A-005 | `docs/database-schema.md` | maintained |
+| A-006 | `DEPLOY.md` | maintained |
+| A-007 | `PROMPTS.md` | maintained |
+| A-008 | `docs/ui-ux-brief.md` | maintained |
+| A-009 | `RELEASE-NOTES.md` | maintained |
+| A-010 | `docs/test-plan.md` | maintained |
+| A-011 | `docs/artifacts-catalog.md` | maintained |
+
+## Language
+Docs can be bilingual (RU/EN). Technical terms (API, SQL, GCP) stay in English.
+
+## Checkpoints
+- [ ] All docs have version header
+- [ ] `docs/VERSIONS.md` updated
+- [ ] No contradictions between `api-spec.md`, `database-schema.md`, `ARCHITECTURE.md`

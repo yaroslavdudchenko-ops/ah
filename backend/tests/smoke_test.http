@@ -1,0 +1,96 @@
+# Smoke tests — Фаза 1.5 Swagger Verification
+# Используй REST Client (VSCode) или curl
+# Перед запуском: docker compose up --build
+
+@base = http://localhost:8000
+
+### Health check
+GET {{base}}/health
+
+### API Info
+GET {{base}}/api/v1/info
+
+### List templates (3 seed templates ожидается)
+GET {{base}}/api/v1/templates
+
+### Create protocol (BCD-100 demo data)
+# @name create
+POST {{base}}/api/v1/protocols
+Content-Type: application/json
+
+{
+  "title": "BCD-100 Phase II Study in Metastatic Melanoma",
+  "drug_name": "BCD-100",
+  "inn": "Пролголимаб",
+  "phase": "II",
+  "therapeutic_area": "oncology",
+  "indication": "Метастатическая меланома, прогрессия на 1 линии терапии",
+  "population": "Взрослые ≥18 лет, ECOG 0-1, верифицированная меланома с отдалёнными метастазами",
+  "primary_endpoint": "ORR (Objective Response Rate) по RECIST 1.1",
+  "secondary_endpoints": ["PFS", "OS", "DoR", "DCR"],
+  "duration_weeks": 96,
+  "dosing": "1 мг/кг в/в каждые 2 недели",
+  "inclusion_criteria": [
+    "Возраст ≥18 лет",
+    "ECOG PS 0-1",
+    "Гистологически верифицированная меланома",
+    "Наличие измеримых очагов по RECIST 1.1"
+  ],
+  "exclusion_criteria": [
+    "Активные аутоиммунные заболевания",
+    "Системная иммуносупрессивная терапия",
+    "Активные метастазы в ЦНС"
+  ]
+}
+
+### Get created protocol
+# @name get
+GET {{base}}/api/v1/protocols/{{create.response.body.id}}
+
+### List protocols
+GET {{base}}/api/v1/protocols
+
+### Generate sections (MVP 7 секций)
+# @name generate
+POST {{base}}/api/v1/protocols/{{create.response.body.id}}/generate
+Content-Type: application/json
+
+{
+  "sections": ["introduction", "objectives", "design", "population", "treatment", "efficacy", "safety"],
+  "comment": "Initial generation — BCD-100 Phase II demo"
+}
+
+### Check generation status (подставь task_id из ответа выше)
+GET {{base}}/api/v1/protocols/{{create.response.body.id}}/generate/{{generate.response.body.task_id}}
+
+### List versions
+GET {{base}}/api/v1/protocols/{{create.response.body.id}}/versions
+
+### Consistency check
+POST {{base}}/api/v1/protocols/{{create.response.body.id}}/check
+Content-Type: application/json
+
+{}
+
+### Export Markdown
+GET {{base}}/api/v1/protocols/{{create.response.body.id}}/export?format=md
+
+### Export HTML
+GET {{base}}/api/v1/protocols/{{create.response.body.id}}/export?format=html
+
+### Export DOCX (P2)
+GET {{base}}/api/v1/protocols/{{create.response.body.id}}/export?format=docx
+
+### Update protocol
+PATCH {{base}}/api/v1/protocols/{{create.response.body.id}}
+Content-Type: application/json
+
+{
+  "status": "in_review"
+}
+
+### Delete protocol
+DELETE {{base}}/api/v1/protocols/{{create.response.body.id}}
+
+### Diff (P2 stub — expects 501)
+GET {{base}}/api/v1/protocols/{{create.response.body.id}}/diff?v1=1&v2=2

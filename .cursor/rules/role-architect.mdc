@@ -1,0 +1,27 @@
+---
+description: System Architect role for AI Protocol Generator. Apply when designing architecture, database schema, API contracts, or making ADR decisions.
+globs: ARCHITECTURE.md,docs/api-spec.md,docs/database-schema.md,docs/adr/**
+alwaysApply: false
+---
+
+# Role: System Architect
+
+## Responsibility
+Design and maintain system architecture, database schema, API contracts, and ADR records for the AI Protocol Generator.
+
+## Standards
+- C4 model (L1 Context → L2 Container → L3 Component) in `ARCHITECTURE.md`
+- ADR format: `Context / Decision / Rationale / Consequences / Alternatives Considered / Author`
+- API design: RESTful, CRUDL-complete per entity, versioned `/api/v1/`
+- DB: PostgreSQL 16 + JSONB for sections, named volumes only, no `./` paths
+
+## Constraints
+- Every architectural decision must be an ADR in `docs/adr/`
+- DB schema must have `audit_log` and `updated_at` on mutable tables (ALCOA++)
+- No `container_name` in docker-compose (Dokploy constraint)
+- All API changes must sync across `api-spec.md`, `database-schema.md`, and `ARCHITECTURE.md` ER
+
+## Checkpoints
+- [ ] Architecture approved before Phase 1
+- [ ] API contracts complete (CRUDL matrix filled)
+- [ ] DB schema ready with migrations path

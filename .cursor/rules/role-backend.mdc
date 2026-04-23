@@ -1,0 +1,33 @@
+---
+description: Backend Developer role for AI Protocol Generator. Apply when writing Python/FastAPI code, SQLAlchemy models, migrations, or backend services.
+globs: backend/**
+alwaysApply: false
+---
+
+# Role: Backend Developer
+
+## Stack
+Python 3.12 + FastAPI + SQLAlchemy 2 (async) + Alembic + asyncpg + Pydantic v2
+
+## Conventions
+- File naming: `snake_case` (e.g., `ai_service.py`, `protocol_router.py`)
+- Routes in `backend/app/routers/`, services in `backend/app/services/`, models in `backend/app/models/`
+- All endpoints under `/api/v1/` prefix
+- Structured errors: `{"error": {"code": "...", "message": "...", "details": [...]}}`
+- ORM only — no raw SQL string interpolation (SQL injection prevention)
+- Non-root user in Dockerfile, multi-stage build
+
+## Required for every AI call
+- Retry with exponential backoff via `tenacity` (max 3 attempts)
+- Timeout: 30 seconds
+- Log to `audit_log`: action, timestamp, model, duration_ms
+
+## Key endpoints (see docs/api-spec.md)
+`POST /protocols` `GET /protocols` `PATCH /protocols/{id}` `DELETE /protocols/{id}`  
+`POST /protocols/{id}/generate` `POST /protocols/{id}/check` `GET /protocols/{id}/diff`  
+`GET /protocols/{id}/export` `GET /health`
+
+## Checkpoints
+- [ ] `GET /health` returns `{"status":"ok","db":"connected"}`
+- [ ] Alembic migrations run cleanly
+- [ ] All CRUDL operations covered per entity

@@ -1,0 +1,45 @@
+---
+description: Frontend Developer role for AI Protocol Generator. Apply when writing React/TypeScript components, pages, API hooks, or Tailwind styles.
+globs: frontend/**
+alwaysApply: false
+---
+
+# Role: Frontend Developer
+
+## Stack
+React 18 + Vite + TypeScript + Tailwind CSS
+
+## Conventions
+- Components: `PascalCase` in `frontend/src/components/`
+- Pages: `PascalCase` in `frontend/src/pages/`
+- API calls: `camelCase` hooks in `frontend/src/api/`
+- Constants: `UPPER_SNAKE_CASE`
+
+## Required UI elements
+- `AIGenerationStatus` — shows `idle | generating | complete | error` + current section name
+- Cancel button during generation
+- `compliance_score` badge on protocol viewer (0–100)
+- Disclaimer: `"AI-Assisted. Requires qualified person review."` on every protocol view
+- Watermark preview on export dialog
+
+## Form validation rules (FR-02.6)
+`phase IN ('I','II','III')` | `duration_weeks > 0` | `primary_endpoint` min 3 chars | `title` min 5 chars
+
+## Screens (P0 first)
+1. Protocol list (dashboard with status badges)
+2. Create protocol form (3 steps: Template → Parameters → Criteria)
+3. Protocol viewer (sidebar nav, section content, regenerate button)
+4. Diff viewer (side-by-side, color-coded lines)
+
+## Deviation constraint (NFR-06)
+UI implementation must not deviate from `docs/functional-requirements.md` by more than:
+- **15%** for standard UI functions (forms, lists, export, versioning)
+- **25%** for AI generator UI (generation status, section display, compliance badge)
+
+Cosmetic differences (colors, spacing, icons) are **not** counted as deviations.
+
+## Checkpoints
+- [ ] Form validates before submitting
+- [ ] Generation progress shown in real time (polling)
+- [ ] Export triggers file download
+- [ ] All required FR fields present in UI (deviation ≤ 15% / 25%)
