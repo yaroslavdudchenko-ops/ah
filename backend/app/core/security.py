@@ -25,8 +25,9 @@ PBKDF2_ITERATIONS = 260_000
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
-WRITE_ROLES = {"admin", "employee"}
-READ_ROLES  = {"admin", "employee", "auditor"}
+WRITE_ROLES  = {"admin", "employee"}   # create, update
+DELETE_ROLES = {"admin"}               # delete only admin
+READ_ROLES   = {"admin", "employee", "auditor"}
 
 
 # ── Password hashing (PBKDF2-HMAC-SHA256) ───────────────────────────────────
@@ -115,6 +116,16 @@ def require_write(current_user: dict = Depends(get_current_user)) -> dict:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"error": {"code": "FORBIDDEN", "message": "Read-only role cannot perform this action", "details": []}},
+        )
+    return current_user
+
+
+def require_delete(current_user: dict = Depends(get_current_user)) -> dict:
+    """Allow admin only; employee and auditor cannot delete."""
+    if current_user["role"] not in DELETE_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "FORBIDDEN", "message": "Only Admin can delete protocols", "details": []}},
         )
     return current_user
 

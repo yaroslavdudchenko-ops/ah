@@ -121,6 +121,22 @@ async def test_auditor_cannot_delete_protocol(raw_client):
     assert resp.status_code == 403
 
 
+@pytest.mark.asyncio
+async def test_employee_cannot_delete_protocol(raw_client):
+    """Employee JWT → DELETE → 403 (employee: read, create, update only)."""
+    login = await raw_client.post(
+        "/api/v1/auth/token",
+        data={"username": "employee", "password": "employee123"},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    token = login.json()["access_token"]
+    resp = await raw_client.delete(
+        "/api/v1/protocols/00000000-0000-0000-0000-000000000000",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 403
+
+
 # ── /auth/me ─────────────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio

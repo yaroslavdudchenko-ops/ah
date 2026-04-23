@@ -32,7 +32,8 @@ const POLL_INTERVAL = 2500
 export default function ProtocolPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { isReadOnly } = useAuth()
+  const { isReadOnly, user } = useAuth()
+  const canDelete = user?.role === 'admin'
 
   const [protocol, setProtocol]           = useState<Protocol | null>(null)
   const [versions, setVersions]           = useState<ProtocolVersion[]>([])
@@ -225,7 +226,7 @@ export default function ProtocolPage() {
             </>
           )}
 
-          {!isReadOnly && (
+          {canDelete && (
             <button onClick={handleDelete} disabled={deleting} className="btn-danger !px-3">
               {deleting ? <Spinner size={16} /> : <Trash2 className="w-4 h-4" />}
             </button>

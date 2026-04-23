@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
 from app.core.database import get_db
-from app.core.security import get_current_user, require_write
+from app.core.security import get_current_user, require_write, require_delete
 from app.models.protocol import Protocol, ProtocolVersion, AuditLog
 from app.schemas.protocol import (
     ProtocolCreate, ProtocolUpdate, ProtocolResponse, ProtocolListItem,
@@ -84,7 +84,7 @@ async def update_protocol(
 async def delete_protocol(
     protocol_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_write),
+    current_user: dict = Depends(require_delete),
 ):
     protocol = await _get_or_404(protocol_id, db)
     db.add(AuditLog(
