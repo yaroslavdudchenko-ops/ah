@@ -25,9 +25,16 @@ services:
       AI_GATEWAY_URL: ${AI_GATEWAY_URL}
       AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY}
       AI_GATEWAY_MODEL: ${AI_GATEWAY_MODEL:-InHouse/Qwen3.5-122B}
-      CORS_ORIGINS: '["http://localhost","http://localhost:80"]'
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost","http://localhost:80"]'}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       APP_ENV: ${APP_ENV:-development}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      EMPLOYEE_USERNAME: ${EMPLOYEE_USERNAME:-employee}
+      EMPLOYEE_PASSWORD: ${EMPLOYEE_PASSWORD:-emp123}
+      AUDITOR_USERNAME: ${AUDITOR_USERNAME:-auditor}
+      AUDITOR_PASSWORD: ${AUDITOR_PASSWORD:-aud123}
+      SECRET_KEY: ${SECRET_KEY:-supersecretkey32byteslong1234567}
     ports:
       - "8000"
     depends_on:
@@ -56,6 +63,11 @@ services:
       retries: 3
       start_period: 10s
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.synthia-frontend.rule=Host(`${APP_DOMAIN:-localhost}`)"
+      - "traefik.http.routers.synthia-frontend.entrypoints=web"
+      - "traefik.http.services.synthia-frontend.loadbalancer.server.port=80"
 
 volumes:
   db-data:
