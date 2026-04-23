@@ -25,7 +25,7 @@ services:
       AI_GATEWAY_URL: ${AI_GATEWAY_URL}
       AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY}
       AI_GATEWAY_MODEL: ${AI_GATEWAY_MODEL:-InHouse/Qwen3.5-122B}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      CORS_ORIGINS: '["http://localhost","http://localhost:80"]'
       LOG_LEVEL: ${LOG_LEVEL:-info}
       APP_ENV: ${APP_ENV:-development}
     ports:

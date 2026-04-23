@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -14,10 +15,11 @@ router = APIRouter(prefix="/api/v1/protocols", tags=["protocols"])
 
 @router.post("", response_model=ProtocolResponse, status_code=status.HTTP_201_CREATED)
 async def create_protocol(body: ProtocolCreate, db: AsyncSession = Depends(get_db)):
-    protocol = Protocol(**body.model_dump())
+    protocol_id = str(uuid.uuid4())
+    protocol = Protocol(id=protocol_id, **body.model_dump())
     db.add(protocol)
     db.add(AuditLog(
-        entity_type="protocol", entity_id=protocol.id,
+        entity_type="protocol", entity_id=protocol_id,
         action="create", metadata_={"title": body.title},
     ))
     await db.flush()
