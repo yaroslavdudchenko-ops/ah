@@ -2,24 +2,29 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Zap, Download, Shield, Trash2, CheckCircle2,
-  AlertTriangle, Info, FileText, RefreshCcw
+  AlertTriangle, Info, FileText, RefreshCcw, RotateCcw
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { api, type Protocol, type ProtocolVersion, type GenerateStatus, type CheckResponse } from '../api/client'
+import { useAuth } from '../contexts/AuthContext'
 import StatusBadge from '../components/StatusBadge'
 import Spinner from '../components/Spinner'
 import ErrorAlert from '../components/ErrorAlert'
 
 const SECTION_LABELS: Record<string, string> = {
-  background: 'Введение / Обоснование',
-  objectives: 'Цели исследования',
-  design: 'Дизайн исследования',
-  population: 'Популяция',
-  treatment: 'Лечение / Вмешательства',
-  safety: 'Безопасность',
-  statistics: 'Статистический анализ',
-  ethics: 'Этические аспекты',
-  references: 'Список литературы',
+  title_page:  'Титульная страница',
+  synopsis:    'Краткое резюме',
+  background:  'Введение / Обоснование',
+  introduction:'Введение / Обоснование',
+  objectives:  'Цели исследования',
+  design:      'Дизайн исследования',
+  population:  'Популяция',
+  treatment:   'Лечение / Вмешательства',
+  efficacy:    'Оценка эффективности',
+  safety:      'Безопасность',
+  statistics:  'Статистический анализ',
+  ethics:      'Этические аспекты',
+  references:  'Список литературы',
 }
 
 const POLL_INTERVAL = 2500
@@ -27,20 +32,23 @@ const POLL_INTERVAL = 2500
 export default function ProtocolPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { isReadOnly } = useAuth()
 
-  const [protocol, setProtocol] = useState<Protocol | null>(null)
-  const [versions, setVersions] = useState<ProtocolVersion[]>([])
+  const [protocol, setProtocol]           = useState<Protocol | null>(null)
+  const [versions, setVersions]           = useState<ProtocolVersion[]>([])
   const [activeVersion, setActiveVersion] = useState<ProtocolVersion | null>(null)
   const [generateStatus, setGenerateStatus] = useState<GenerateStatus | null>(null)
-  const [checkResult, setCheckResult] = useState<CheckResponse | null>(null)
-  const [taskId, setTaskId] = useState<string | null>(null)
+  const [checkResult, setCheckResult]     = useState<CheckResponse | null>(null)
+  const [taskId, setTaskId]               = useState<string | null>(null)
+  const [regenSection, setRegenSection]   = useState<string | null>(null)
+  const [comment, setComment]             = useState('')
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading]     = useState(true)
   const [generating, setGenerating] = useState(false)
-  const [checking, setChecking] = useState(false)
+  const [checking, setChecking]   = useState(false)
   const [exporting, setExporting] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [deleting, setDeleting]   = useState(false)
+  const [error, setError]         = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string | null>(null)
 
   const loadProtocol = useCallback(async () => {
@@ -67,7 +75,7 @@ export default function ProtocolPage() {
 
   useEffect(() => { loadProtocol() }, [loadProtocol])
 
-  // Poll generation status
+  // Poll generation / regen status
   useEffect(() => {
     if (!taskId || !id) return
     const timer = setInterval(async () => {
@@ -77,6 +85,7 @@ export default function ProtocolPage() {
         if (status.status === 'completed' || status.status === 'failed') {
           clearInterval(timer)
           setGenerating(false)
+          setRegenSection(null)
           setTaskId(null)
           if (status.status === 'completed') {
             await loadProtocol()
@@ -87,6 +96,7 @@ export default function ProtocolPage() {
       } catch {
         clearInterval(timer)
         setGenerating(false)
+        setRegenSection(null)
         setTaskId(null)
       }
     }, POLL_INTERVAL)
@@ -99,12 +109,29 @@ export default function ProtocolPage() {
     setError(null)
     setCheckResult(null)
     try {
-      const res = await api.startGenerate(id)
+      const res = await api.startGenerate(id, comment || undefined)
+      setComment('')
       setTaskId(res.task_id)
       setGenerateStatus({ task_id: res.task_id, status: 'pending', sections_done: 0, total_sections: 9 })
     } catch (e) {
       setError((e as Error).message)
       setGenerating(false)
+    }
+  }
+
+  const handleRegenSection = async (sectionKey: string) => {
+    if (!id) return
+    setGenerating(true)
+    setRegenSection(sectionKey)
+    setError(null)
+    try {
+      const res = await api.regenerateSection(id, sectionKey)
+      setTaskId(res.task_id)
+      setGenerateStatus({ task_id: res.task_id, status: 'pending', sections_done: 0, total_sections: 1 })
+    } catch (e) {
+      setError((e as Error).message)
+      setGenerating(false)
+      setRegenSection(null)
     }
   }
 
@@ -147,13 +174,8 @@ export default function ProtocolPage() {
     }
   }
 
-  if (loading) {
-    return <div className="flex justify-center py-24"><Spinner size={36} /></div>
-  }
-
-  if (!protocol) {
-    return <div className="py-16"><ErrorAlert message="Протокол не найден" /></div>
-  }
+  if (loading) return <div className="flex justify-center py-24"><Spinner size={36} /></div>
+  if (!protocol) return <div className="py-16"><ErrorAlert message="Протокол не найден" /></div>
 
   const sections = activeVersion ? Object.keys(activeVersion.content) : []
   const hasContent = sections.length > 0
@@ -177,18 +199,23 @@ export default function ProtocolPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={handleGenerate} disabled={generating || checking}
-            className="btn-primary">
-            {generating ? <><Spinner size={16} /> Генерация...</> : <><Zap className="w-4 h-4" /> Генерировать</>}
-          </button>
+          {!isReadOnly && (
+            <button onClick={handleGenerate} disabled={generating || checking} className="btn-primary">
+              {generating && !regenSection
+                ? <><Spinner size={16} /> Генерация...</>
+                : <><Zap className="w-4 h-4" /> Генерировать</>}
+            </button>
+          )}
 
           {hasContent && (
             <>
-              <button onClick={handleCheck} disabled={checking || generating} className="btn-secondary">
-                {checking ? <><Spinner size={16} /> Проверка...</> : <><Shield className="w-4 h-4" /> GCP-проверка</>}
-              </button>
+              {!isReadOnly && (
+                <button onClick={handleCheck} disabled={checking || generating} className="btn-secondary">
+                  {checking ? <><Spinner size={16} /> Проверка...</> : <><Shield className="w-4 h-4" /> GCP-проверка</>}
+                </button>
+              )}
               <div className="flex gap-1">
-                {(['md', 'html'] as const).map(fmt => (
+                {(['md', 'html', 'docx'] as const).map(fmt => (
                   <button key={fmt} onClick={() => handleExport(fmt)} disabled={!!exporting}
                     className="btn-secondary !px-3 text-xs uppercase">
                     {exporting === fmt ? <Spinner size={14} /> : <><Download className="w-3.5 h-3.5" />{fmt}</>}
@@ -198,13 +225,29 @@ export default function ProtocolPage() {
             </>
           )}
 
-          <button onClick={handleDelete} disabled={deleting} className="btn-danger !px-3">
-            {deleting ? <Spinner size={16} /> : <Trash2 className="w-4 h-4" />}
-          </button>
+          {!isReadOnly && (
+            <button onClick={handleDelete} disabled={deleting} className="btn-danger !px-3">
+              {deleting ? <Spinner size={16} /> : <Trash2 className="w-4 h-4" />}
+            </button>
+          )}
         </div>
       </div>
 
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+
+      {/* Version comment input */}
+      {!isReadOnly && (
+        <div className="card p-4">
+          <label className="form-label mb-1">Комментарий к версии (опционально)</label>
+          <input
+            className="form-input"
+            placeholder="Описание изменений, например: «Обновлены критерии включения»"
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            maxLength={1000}
+          />
+        </div>
+      )}
 
       {/* Generation progress */}
       {generating && generateStatus && (
@@ -212,18 +255,17 @@ export default function ProtocolPage() {
           <div className="flex items-center gap-3 mb-2">
             <Spinner size={18} />
             <span className="text-sm font-medium text-gray-700">
-              Генерация разделов... {generateStatus.sections_done}/{generateStatus.total_sections}
+              {regenSection
+                ? `Перегенерация раздела: ${SECTION_LABELS[regenSection] ?? regenSection}...`
+                : `Генерация разделов... ${generateStatus.sections_done}/${generateStatus.total_sections}`}
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-brand-600 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${(generateStatus.sections_done / generateStatus.total_sections) * 100}%` }}
+              style={{ width: `${(generateStatus.sections_done / Math.max(generateStatus.total_sections, 1)) * 100}%` }}
             />
           </div>
-          {generateStatus.message && (
-            <p className="text-xs text-gray-500 mt-1">{generateStatus.message}</p>
-          )}
         </div>
       )}
 
@@ -277,7 +319,8 @@ export default function ProtocolPage() {
                   </button>
                 ))}
               </nav>
-              {versions.length > 1 && (
+
+              {versions.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-gray-100">
                   <p className="text-xs font-medium text-gray-500 mb-1 px-1">Версия</p>
                   <select
@@ -289,9 +332,14 @@ export default function ProtocolPage() {
                     }}
                   >
                     {versions.map(v => (
-                      <option key={v.id} value={v.id}>v{v.version_number}</option>
+                      <option key={v.id} value={v.id}>
+                        v{v.version_number}{v.comment ? ` · ${v.comment.slice(0, 20)}` : ''}
+                      </option>
                     ))}
                   </select>
+                  {activeVersion.comment && (
+                    <p className="text-xs text-gray-400 mt-1 px-1 italic">{activeVersion.comment}</p>
+                  )}
                   {activeVersion.compliance_score !== undefined && (
                     <div className="mt-2 px-1">
                       <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -315,11 +363,26 @@ export default function ProtocolPage() {
           <div className="flex-1 min-w-0 card p-6">
             {activeSection && activeVersion.content[activeSection] ? (
               <>
-                <div className="flex items-center gap-2 mb-4">
-                  <FileText className="w-4 h-4 text-brand-600" />
-                  <h2 className="font-semibold text-gray-900">
-                    {SECTION_LABELS[activeSection] ?? activeSection}
-                  </h2>
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-brand-600" />
+                    <h2 className="font-semibold text-gray-900">
+                      {SECTION_LABELS[activeSection] ?? activeSection}
+                    </h2>
+                  </div>
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => handleRegenSection(activeSection)}
+                      disabled={generating || checking}
+                      title="Перегенерировать этот раздел"
+                      className="btn-secondary !px-2 !py-1 text-xs flex items-center gap-1"
+                    >
+                      {regenSection === activeSection
+                        ? <Spinner size={12} />
+                        : <RotateCcw className="w-3.5 h-3.5" />}
+                      Перегенерировать
+                    </button>
+                  )}
                 </div>
                 <div className="prose prose-sm max-w-none text-gray-700">
                   <ReactMarkdown>{activeVersion.content[activeSection]}</ReactMarkdown>
@@ -342,9 +405,11 @@ export default function ProtocolPage() {
           <p className="text-sm text-gray-500 mb-5 max-w-sm">
             Нажмите «Генерировать», и AI создаст все разделы протокола в соответствии с ICH E6(R2) GCP
           </p>
-          <button onClick={handleGenerate} className="btn-primary">
-            <Zap className="w-4 h-4" /> Генерировать протокол
-          </button>
+          {!isReadOnly && (
+            <button onClick={handleGenerate} className="btn-primary">
+              <Zap className="w-4 h-4" /> Генерировать протокол
+            </button>
+          )}
         </div>
       ) : null}
     </div>
@@ -364,12 +429,12 @@ function GcpCheckPanel({ result, onClose }: { result: CheckResponse; onClose: ()
   const score = Math.round(result.compliance_score * 100)
   const rfScore = Math.round((result.rf_compliance_score ?? 0) * 100)
   const scoreColor = score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600'
-  const barColor = score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-amber-500' : 'bg-red-500'
+  const barColor   = score >= 80 ? 'bg-emerald-500'  : score >= 60 ? 'bg-amber-500'   : 'bg-red-500'
 
   const sevColor: Record<string, string> = {
-    high: 'text-red-700 bg-red-50 border-red-200',
+    high:   'text-red-700 bg-red-50 border-red-200',
     medium: 'text-amber-700 bg-amber-50 border-amber-200',
-    low: 'text-blue-700 bg-blue-50 border-blue-200',
+    low:    'text-blue-700 bg-blue-50 border-blue-200',
   }
   const SevIcon = ({ s }: { s: string }) =>
     s === 'high' ? <AlertTriangle className="w-4 h-4" /> : <Info className="w-4 h-4" />
@@ -386,8 +451,13 @@ function GcpCheckPanel({ result, onClose }: { result: CheckResponse; onClose: ()
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {[{ label: 'ICH E6(R2) Score', score, color: scoreColor, bar: barColor },
-          { label: 'РФ НМД Score', score: rfScore, color: rfScore >= 80 ? 'text-emerald-600' : rfScore >= 60 ? 'text-amber-600' : 'text-red-600', bar: rfScore >= 80 ? 'bg-emerald-500' : rfScore >= 60 ? 'bg-amber-500' : 'bg-red-500' }
+        {[
+          { label: 'ICH E6(R2) Score', score, color: scoreColor, bar: barColor },
+          {
+            label: 'РФ НМД Score', score: rfScore,
+            color: rfScore >= 80 ? 'text-emerald-600' : rfScore >= 60 ? 'text-amber-600' : 'text-red-600',
+            bar:   rfScore >= 80 ? 'bg-emerald-500'   : rfScore >= 60 ? 'bg-amber-500'   : 'bg-red-500',
+          },
         ].map(({ label, score: s, color, bar }) => (
           <div key={label} className="bg-gray-50 rounded-lg p-3">
             <p className="text-xs text-gray-500 mb-1">{label}</p>
@@ -426,6 +496,10 @@ function GcpCheckPanel({ result, onClose }: { result: CheckResponse; onClose: ()
           ))}
         </div>
       )}
+
+      <p className="text-xs text-gray-400">
+        AI-Assisted. Requires qualified person review. Не является юридической или медицинской экспертизой.
+      </p>
     </div>
   )
 }

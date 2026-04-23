@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.database import engine
 from app.models.base import Base
-from app.routers import health, protocols, generate, check, export, templates
+from app.routers import health, protocols, generate, check, export, templates, auth
 
 logging.basicConfig(
     level=settings.LOG_LEVEL.upper(),
@@ -49,6 +49,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(protocols.router)
 app.include_router(generate.router)
 app.include_router(check.router)

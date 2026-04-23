@@ -60,7 +60,8 @@ async def test_export_markdown_structure():
 
     md = export_markdown(protocol, version).decode("utf-8")
     assert "# Test Protocol" in md
-    assert "FOR REVIEW ONLY" in md
+    assert "FOR DEMONSTRATION PURPOSES ONLY" in md
+    assert "AI-Assisted. Requires qualified person review." in md
     assert "## Introduction" in md
     assert "Drug-X" in md
 
@@ -90,4 +91,4 @@ async def test_export_html_is_valid():
     assert "<html" in html
     assert "HTML Test" in html
     assert "PASI 75" in html
-    assert "FOR REVIEW ONLY" in html
+    assert "FOR DEMONSTRATION PURPOSES ONLY" in html

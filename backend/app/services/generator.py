@@ -151,3 +151,11 @@ async def generate_protocol_sections(
             logger.error("section_generation_exception", extra={"error": str(r)})
 
     return content
+
+
+async def generate_single_section(protocol: Protocol, section_key: str) -> str:
+    """FR-03.5 — Regenerate a single section."""
+    if section_key not in SECTION_PROMPTS:
+        raise ValueError(f"Unknown section: {section_key}")
+    _, text = await _generate_section(section_key, protocol)
+    return text

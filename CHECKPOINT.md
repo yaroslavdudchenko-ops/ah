@@ -1,8 +1,8 @@
 # CHECKPOINT — Восстановление контекста
 
 **Создан:** 2026-04-23  
-**Версия:** 3.0.0  
-**Обновлён:** 2026-04-23 (сессия 3 — завершение Фаз 2 + 2.5)  
+**Версия:** 4.0.0  
+**Обновлён:** 2026-04-23 (сессия 4 — Auth/RBAC, missing features, test suite)  
 **Назначение:** Полное восстановление контекста после очистки чата
 
 ---
@@ -408,8 +408,26 @@ a0b7e6f feat: initial project commit - AI Clinical Protocol Generator
 - Swagger verification (Фаза 1.5) — все P0 эндпоинты ✅
 - Push в GitLab, очистка репо от scaffold файлов
 
-### Сессия 3 (23.04.2026 — вечер) ← текущая
+### Сессия 3 (23.04.2026 — вечер)
 - **Фаза 2 Frontend** — React SPA с 3 страницами, полным API клиентом, Tailwind UI
 - **Фаза 2.5 QA** — 31/31 pytest, ручные HP-01/HP-02/ALT сценарии
 - Исправления: pytest-asyncio 1.x fixtures, greenlet export bug, nginx pid non-root
 - Локальный сервер: http://localhost:5174/ (Vite) + http://localhost:56403/ (Docker nginx)
+
+### Сессия 4 (23.04.2026 — ночь) ← текущая
+- **Auth/RBAC** — JWT (python-jose), PBKDF2 пароли, 3 роли (admin/employee/auditor)
+  - `POST /api/v1/auth/token` — OAuth2 password flow
+  - `GET /api/v1/auth/me` — whoami
+  - Admin + Employee: read, create, update, delete
+  - Auditor: read only (write → 403)
+- **AuditLog** — `performed_by` (username) + role в metadata_ для всех actions (кто, где, когда, зачем)
+- **Frontend** — LoginPage + AuthContext + ProtectedRoute + Layout (badge/logout)
+- **Quick fixes:**
+  - DOCX кнопка в UI (export: md/html/docx все три)
+  - Watermark: `FOR DEMONSTRATION PURPOSES ONLY — SYNTHETIC DATA | AI-Assisted...`
+  - Federal Registry КИ link в footer
+  - `duration_ms` в AuditLog.metadata_ для ai_generate
+- **FR-03.5** — Перегенерация отдельной секции: `POST /protocols/{id}/sections/{key}/regenerate`
+- **FR-06.2** — Поле комментария к версии в UI
+- **Тесты** — 42/42 passed: +11 auth тестов (login, RBAC, auditor read-only, JWT flow)
+- **Backend deps:** добавлены `python-jose[cryptography]`, `python-multipart`; убрана passlib (заменена на hashlib PBKDF2)

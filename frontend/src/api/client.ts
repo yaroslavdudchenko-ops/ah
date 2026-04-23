@@ -1,16 +1,46 @@
 const BASE = '/api/v1'
+const STORAGE_KEY = 'ai_proto_auth'
+
+function getToken(): string | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw).token : null
+  } catch {
+    return null
+  }
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
-  })
+  const token = getToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options?.headers as Record<string, string>),
+  }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(`${BASE}${path}`, { ...options, headers })
+
+  if (res.status === 401) {
+    localStorage.removeItem(STORAGE_KEY)
+    window.location.href = '/login'
+    throw new Error('Session expired')
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: { message: res.statusText } }))
-    throw new Error(err?.error?.message || err?.detail || res.statusText)
+    const msg = err?.detail?.error?.message || err?.error?.message || err?.detail || res.statusText
+    throw new Error(msg)
   }
   if (res.status === 204) return undefined as T
   return res.json()
+}
+
+async function requestBlob(path: string): Promise<Blob> {
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const res = await fetch(`${BASE}${path}`, { headers })
+  if (!res.ok) throw new Error('Export failed')
+  return res.blob()
 }
 
 export const api = {
@@ -36,10 +66,20 @@ export const api = {
   listVersions: (id: string) => request<ProtocolVersion[]>(`/protocols/${id}/versions`),
 
   // Generate
-  startGenerate: (id: string) =>
-    request<{ task_id: string; status: string }>(`/protocols/${id}/generate`, { method: 'POST', body: '{}' }),
+  startGenerate: (id: string, comment?: string) =>
+    request<{ task_id: string; status: string }>(`/protocols/${id}/generate`, {
+      method: 'POST',
+      body: JSON.stringify({ comment }),
+    }),
   getGenerateStatus: (id: string, taskId: string) =>
     request<GenerateStatus>(`/protocols/${id}/generate/${taskId}`),
+
+  // Section regenerate (FR-03.5)
+  regenerateSection: (id: string, sectionKey: string) =>
+    request<{ task_id: string; section: string }>(
+      `/protocols/${id}/sections/${sectionKey}/regenerate`,
+      { method: 'POST' }
+    ),
 
   // Check
   checkConsistency: (id: string) =>
@@ -47,9 +87,7 @@ export const api = {
 
   // Export
   exportProtocol: async (id: string, format: 'md' | 'html' | 'docx') => {
-    const res = await fetch(`${BASE}/protocols/${id}/export?format=${format}`)
-    if (!res.ok) throw new Error('Export failed')
-    const blob = await res.blob()
+    const blob = await requestBlob(`/protocols/${id}/export?format=${format}`)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -108,6 +146,7 @@ export interface ProtocolVersion {
   protocol_id: string
   version_number: number
   content: Record<string, string>
+  comment?: string
   compliance_score?: number
   generated_by: string
   created_at: string

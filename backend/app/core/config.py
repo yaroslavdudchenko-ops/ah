@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "info"
     CORS_ORIGINS: List[str] = ["http://localhost", "http://localhost:3000", "http://localhost:5173"]
 
+    # Auth
+    SECRET_KEY: str = "change-me-in-production-use-openssl-rand-hex-32"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours
+
+    # Demo users: plain passwords — overridable via env
+    ADMIN_PASSWORD: str = "admin123"
+    EMPLOYEE_PASSWORD: str = "employee123"
+    AUDITOR_PASSWORD: str = "auditor123"
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors(cls, v):

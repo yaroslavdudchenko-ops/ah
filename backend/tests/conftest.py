@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 from app.main import app
 from app.core.database import get_db
+from app.core.security import get_current_user, require_write
 from app.models.base import Base
 
 
@@ -65,11 +66,40 @@ async def db_session():
 
 @pytest_asyncio.fixture
 async def client(db_session):
-    """ASGI test client wired to the fresh test DB session."""
+    """ASGI test client wired to the fresh test DB, authenticated as admin."""
+    _admin = {"username": "admin", "role": "admin"}
+
     async def override_get_db():
         yield db_session
 
+    async def override_auth():
+        return _admin
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_auth
+    app.dependency_overrides[require_write] = override_auth
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def auditor_client(db_session):
+    """ASGI test client authenticated as auditor (read-only)."""
+    _auditor = {"username": "auditor", "role": "auditor"}
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_auth():
+        return _auditor
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_auth
+
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:

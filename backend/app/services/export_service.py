@@ -28,7 +28,7 @@ def _build_markdown(protocol: Protocol, version: ProtocolVersion) -> str:
     content = version.content or {}
     lines = [
         f"# {protocol.title}",
-        f"> **FOR REVIEW ONLY — SYNTHETIC DATA** | Версия: {version.version_number} | Модель: {version.generated_by}",
+        f"> **FOR DEMONSTRATION PURPOSES ONLY — SYNTHETIC DATA** | AI-Assisted. Requires qualified person review. | Версия: {version.version_number} | Модель: {version.generated_by}",
         "",
         "## Параметры исследования",
         f"- **Препарат:** {protocol.drug_name} ({protocol.inn})",
@@ -94,7 +94,8 @@ def export_docx(protocol: Protocol, version: ProtocolVersion) -> bytes:
         doc = Document()
         doc.add_heading(protocol.title, level=0)
         doc.add_paragraph(
-            "FOR REVIEW ONLY — SYNTHETIC DATA | "
+            "FOR DEMONSTRATION PURPOSES ONLY — SYNTHETIC DATA | "
+            "AI-Assisted. Requires qualified person review. | "
             f"Version: {version.version_number} | Model: {version.generated_by}"
         )
 
