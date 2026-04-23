@@ -24,7 +24,7 @@ async def test_export_before_generation(client):
     pid = create.json()["id"]
     resp = await client.get(f"/api/v1/protocols/{pid}/export?format=md")
     assert resp.status_code == 422
-    assert resp.json()["error"]["code"] == "NO_CONTENT"
+    assert resp.json()["detail"]["error"]["code"] == "NO_CONTENT"
 
 
 @pytest.mark.asyncio

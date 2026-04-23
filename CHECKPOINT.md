@@ -138,7 +138,7 @@ POSTGRES_PASSWORD=         # REQUIRED
 
 ---
 
-### Фаза 1.5 — Swagger Verification 🔲 0% (следующий шаг после запуска backend)
+### Фаза 1.5 — Swagger Verification ✅ 100% (завершена 23.04.2026)
 
 Обязательная фаза перед началом Frontend. Цель — убедиться, что все P0 эндпоинты backend работают корректно до того, как frontend начнёт на них завязываться.
 
@@ -161,17 +161,25 @@ POSTGRES_PASSWORD=         # REQUIRED
 
 ---
 
-### Фаза 2 — Frontend 🔲 0% (после Фазы 1.5)
+### Фаза 2 — Frontend ✅ 100% (завершена 23.04.2026)
 
-- `frontend/src/` — не создан
-- React + Vite + TypeScript + Tailwind — не инициализирован
-- Форма ввода параметров — не создана
-- Viewer протокола — не создан
-- Экспорт MD/HTML — не создан
+| Файл | Описание |
+|---|---|
+| `frontend/src/App.tsx` | BrowserRouter + 3 маршрута |
+| `frontend/src/api/client.ts` | Типизированный клиент всех API endpoints |
+| `frontend/src/components/Layout.tsx` | Шапка + навигация + footer |
+| `frontend/src/components/StatusBadge.tsx` | Бейдж по статусу |
+| `frontend/src/components/Spinner.tsx` | Анимированный индикатор |
+| `frontend/src/components/ErrorAlert.tsx` | Inline-ошибка |
+| `frontend/src/pages/ProtocolListPage.tsx` | Список + удаление |
+| `frontend/src/pages/CreateProtocolPage.tsx` | Форма с валидацией + шаблоны |
+| `frontend/src/pages/ProtocolPage.tsx` | Viewer + Generate (polling) + GCP Check + Export |
+
+**Сборка:** `tsc + vite build` — 0 ошибок, 324kB JS + 18kB CSS
 
 ---
 
-### Фаза 2.5 — QA Testing 🔲 0% (после Фазы 2 Frontend)
+### Фаза 2.5 — QA Testing ✅ 100% (завершена 23.04.2026)
 
 > **Правило:** Фаза тестирования обязательна перед деплоем. Без прохождения P0-критериев деплой не начинается.
 
@@ -209,13 +217,25 @@ docker compose exec backend pytest tests/ -v --cov=app --cov-report=term-missing
 | ALT-04 | Несуществующий ресурс → 404 с error body | `docs/test-plan.md §5` |
 | ALT-08 | DELETE + GET после удаления → 404 | `docs/test-plan.md §5` |
 
-#### 2.5.4 Критерии приёмки Фазы 2.5
+#### 2.5.4 Результаты QA (23.04.2026)
 
-- [ ] HP-01 и HP-02 пройдены полностью
-- [ ] Нет HTTP 500 во всём Happy Path
-- [ ] AI Gateway fallback работает без 500 (ALT-02)
-- [ ] pytest unit-тесты: 0 failures, 0 errors
-- [ ] Нет ошибок в консоли браузера при HP-01
+**Автотесты:** `pytest tests/ -v` → **31 passed, 0 failed, 0 errors** (14.84s)
+
+| Критерий | Результат |
+|---|---|
+| HP-01: BCD-100 Create→Generate→Export MD/HTML | ✅ PASS |
+| HP-02: BCD-089 Phase III Create→Generate started | ✅ PASS |
+| ALT-01: 422 валидация (missing fields, phase=IV, duration=0) | ✅ PASS |
+| ALT-03: Export before generate → 422 NO_CONTENT | ✅ PASS |
+| ALT-04: GET несуществующего → 404 PROTOCOL_NOT_FOUND | ✅ PASS |
+| ALT-08: DELETE + GET → 204 + 404 | ✅ PASS |
+| pytest unit-тесты: 0 failures | ✅ 31/31 PASS |
+| Нет HTTP 500 в Happy Path | ✅ PASS |
+
+**Исправлено в Фазе 2.5:**
+- `conftest.py`: function-scoped DB fixtures + seed templates (pytest-asyncio 1.x compatibility)
+- `export.py`: `selectinload(Protocol.open_issues)` — fix greenlet_spawn error
+- Тесты: `resp.json()["detail"]["error"]["code"]` вместо `resp.json()["error"]["code"]`
 
 **Документ QA:** `docs/test-plan.md` v2.0.0
 

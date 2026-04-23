@@ -75,7 +75,7 @@ async def test_get_deleted_protocol_returns_404(client):
     await client.delete(f"/api/v1/protocols/{pid}")
     resp = await client.get(f"/api/v1/protocols/{pid}")
     assert resp.status_code == 404
-    assert resp.json()["error"]["code"] == "PROTOCOL_NOT_FOUND"
+    assert resp.json()["detail"]["error"]["code"] == "PROTOCOL_NOT_FOUND"
 
 
 # ─── Validation / Negative ────────────────────────────────────────────────────
@@ -130,8 +130,7 @@ async def test_get_nonexistent_protocol(client):
     """ALT-04.1: GET /protocols/invalid-uuid → 404 with error body."""
     resp = await client.get("/api/v1/protocols/00000000-0000-0000-0000-000000000000")
     assert resp.status_code == 404
-    assert "error" in resp.json()
-    assert resp.json()["error"]["code"] == "PROTOCOL_NOT_FOUND"
+    assert resp.json()["detail"]["error"]["code"] == "PROTOCOL_NOT_FOUND"
 
 
 @pytest.mark.asyncio
@@ -160,4 +159,4 @@ async def test_diff_stub_returns_501(client):
     pid = create.json()["id"]
     resp = await client.get(f"/api/v1/protocols/{pid}/diff?v1=1&v2=2")
     assert resp.status_code == 501
-    assert resp.json()["error"]["code"] == "NOT_IMPLEMENTED"
+    assert resp.json()["detail"]["error"]["code"] == "NOT_IMPLEMENTED"

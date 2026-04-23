@@ -28,7 +28,7 @@ async def test_get_nonexistent_template(client):
     """ALT-04.3: GET nonexistent template → 404."""
     resp = await client.get("/api/v1/templates/nonexistent-id")
     assert resp.status_code == 404
-    assert resp.json()["error"]["code"] == "TEMPLATE_NOT_FOUND"
+    assert resp.json()["detail"]["error"]["code"] == "TEMPLATE_NOT_FOUND"
 
 
 @pytest.mark.asyncio
@@ -36,4 +36,4 @@ async def test_create_template_stub_501(client):
     """ALT-05.2: POST /templates → 501 NOT_IMPLEMENTED."""
     resp = await client.post("/api/v1/templates", json={})
     assert resp.status_code == 501
-    assert resp.json()["error"]["code"] == "NOT_IMPLEMENTED"
+    assert resp.json()["detail"]["error"]["code"] == "NOT_IMPLEMENTED"

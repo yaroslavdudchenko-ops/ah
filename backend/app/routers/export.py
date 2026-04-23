@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.models.protocol import Protocol, ProtocolVersion
 from app.schemas.protocol import error_body
@@ -20,7 +21,11 @@ async def export_protocol(
     version_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Protocol).where(Protocol.id == protocol_id))
+    result = await db.execute(
+        select(Protocol)
+        .options(selectinload(Protocol.open_issues))
+        .where(Protocol.id == protocol_id)
+    )
     protocol = result.scalar_one_or_none()
     if not protocol:
         raise HTTPException(
