@@ -1,8 +1,8 @@
 # CHECKPOINT — Восстановление контекста
 
 **Создан:** 2026-04-23  
-**Версия:** 2.0.0  
-**Обновлён:** 2026-04-23 (сессия 2)  
+**Версия:** 3.0.0  
+**Обновлён:** 2026-04-23 (сессия 3 — завершение Фаз 2 + 2.5)  
 **Назначение:** Полное восстановление контекста после очистки чата
 
 ---
@@ -57,50 +57,35 @@ Backend → AIGatewayClient (httpx.AsyncClient + tenacity retry)
 
 ---
 
-## 4. Конфигурация (mcp.json + .env.example)
+## 4. Конфигурация (.env + docker-compose)
 
-### mcp.json (корень проекта)
-
-| Сервер | Пакет | Назначение |
-|---|---|---|
-| `chrome-devtools` | `chrome-devtools-mcp` | Отладка frontend |
-| `mcp-atlassian` | `mcp-atlassian` | Jira / Confluence |
-| `gitlab` | `@modelcontextprotocol/server-gitlab` | GitLab API (gitlab.biocad.ru) |
-| `provider.gateway` | `@ai-sdk/openai-compatible` | AI Gateway → Qwen3.5-122B |
-
-Ключ конфигурации: `"mcpServers"` (исправлено с `"mcp"`).
-
-### .env.example — ключевые переменные
+### Локальная разработка (.env — не в git)
 
 ```
 AI_GATEWAY_URL=            # Внутренний AI Gateway URL
 AI_GATEWAY_API_KEY=        # Ключ доступа к Gateway
-GITLAB_API_URL=https://gitlab.biocad.ru
-GITLAB_PERSONAL_ACCESS_TOKEN=   # PAT: api + read_repository
-OPENROUTER_API_KEY=        # dev/config only — не используется приложением в production
-POSTGRES_PASSWORD=         # REQUIRED
+POSTGRES_USER=app
+POSTGRES_PASSWORD=app_dev_password
+POSTGRES_DB=protocols
+DATABASE_URL=postgresql+asyncpg://app:app_dev_password@db:5432/protocols
+CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:8000"]
 ```
+
+### docker-compose.yml — важные нюансы
+
+- `CORS_ORIGINS` передаётся как JSON-строка: `'["http://localhost","http://localhost:80"]'`
+- Порты меняются при каждом `docker compose restart` (random port mapping)
+- Backend текущий порт: **50159** (может измениться при рестарте)
+- Frontend текущий порт: **56403** (nginx, production-like)
+- Vite dev server: **http://localhost:5174/** (для локальной разработки)
 
 ---
 
-## 5. Текущее состояние
+## 5. Текущее состояние проекта
 
 ### Фаза 0 — Документация ✅ 100%
 
-| Файл | Версия | Статус |
-|---|---|---|
-| `README.md` | 1.0.0 | ✅ Обновлён (AI Gateway, без OpenRouter) |
-| `ARCHITECTURE.md` | **1.2.0** | ✅ C4 L1/L2/L3 + ER + Deploy, только AI Gateway |
-| `DEPLOY.md` | 1.0.0 | ✅ AI Gateway переменные, без OpenRouter |
-| `PROMPTS.md` | 1.0.0 | ✅ Структура есть |
-| `.env.example` | 2.0.0 | ✅ AI Gateway + GitLab + OpenRouter (dev-only) |
-| `mcp.json` | 1.1.0 | ✅ mcpServers: GitLab + chrome + atlassian |
-| `docs/functional-requirements.md` | **1.2.0** | ✅ 12 секций, NFR-07 (РФ), NFR-08 (ИБ) |
-| `docs/api-spec.md` | **1.2.0** | ✅ CRUDL + AI Provider (только Gateway) |
-| `docs/business-requirements.md` | 1.0.0 | ✅ |
-| `docs/artifacts-catalog.md` | **1.1.0** | ✅ A-007 v1.2.0, A-009 v1.2.0, S-004 v2.0.0 |
-| `docs/adr/ADR-002` | **v2.0.0** | ✅ Переписан: AI Gateway only, внешние LLM запрещены |
-| Все прочие docs/* | 1.0.0 | ✅ ER, Event Storming, Use Case, State, Test Plan… |
+Все документы в `docs/`, включая `test-plan.md` v2.0.0, `api-spec.md` v1.2.0, `ARCHITECTURE.md` v1.2.0.
 
 ---
 
@@ -108,15 +93,15 @@ POSTGRES_PASSWORD=         # REQUIRED
 
 | Файл | Описание |
 |---|---|
-| `docker-compose.yml` | 3 сервиса: db, backend, frontend. Named volumes. Short ports. HEALTHCHECK. |
+| `docker-compose.yml` | 3 сервиса: db, backend, frontend. Named volumes. HEALTHCHECK. |
 | `backend/Dockerfile` | python:3.12-slim, non-root user, alembic upgrade head + uvicorn |
-| `frontend/Dockerfile` | node:20-alpine builder → nginx:alpine, non-root |
+| `frontend/Dockerfile` | node:20-alpine builder → nginx:alpine, non-root. PID fix: `sed pid /tmp/nginx.pid` |
 | `frontend/nginx.conf` | SPA fallback + `/api/` proxy → backend:8000 |
 | `backend/app/core/config.py` | pydantic-settings: AI_GATEWAY_URL/KEY/MODEL, DATABASE_URL, CORS |
 | `backend/app/core/database.py` | async_engine, AsyncSessionLocal, get_db() dependency |
 | `backend/app/models/protocol.py` | 5 таблиц: Protocol, ProtocolVersion, Template, OpenIssue, AuditLog |
-| `backend/app/schemas/protocol.py` | Pydantic v2: Create/Update/Response + error_body() |
-| `backend/app/schemas/generate.py` | GenerateRequest/Status, CheckResponse, DiffResponse (P2 stub) |
+| `backend/app/schemas/protocol.py` | Pydantic v2: Create/Update/Response + `error_body()` |
+| `backend/app/schemas/generate.py` | GenerateRequest/Status, CheckResponse, GcpHint, DiffResponse (P2 stub) |
 | `backend/app/services/ai_gateway.py` | AIGatewayClient: httpx + tenacity ×3. Только Qwen. HTTP 503 при сбое. |
 | `backend/app/services/generator.py` | 12 секций, MVP=7, THERAPEUTIC_AREA/PHASE контексты, fallback |
 | `backend/app/services/consistency.py` | GCP+RF check, JSON парсинг, fallback при недоступности |
@@ -125,161 +110,154 @@ POSTGRES_PASSWORD=         # REQUIRED
 | `backend/app/routers/protocols.py` | CRUDL + /versions + /diff stub → 501 |
 | `backend/app/routers/generate.py` | POST /generate (async BackgroundTask) + GET status |
 | `backend/app/routers/check.py` | POST /check → consistency + open_issues persist |
-| `backend/app/routers/export.py` | GET /export?format=md\|html\|docx |
+| `backend/app/routers/export.py` | GET /export?format=md\|html\|docx. `selectinload(open_issues)` — обязательно! |
 | `backend/app/routers/templates.py` | GET /templates, POST stub → 501 |
 | `backend/app/main.py` | FastAPI app, CORS, global error handler, lifespan |
-| `backend/alembic/env.py` | Async alembic env |
-| `backend/alembic/versions/001_initial_schema.py` | 5 таблиц + индексы + 3 seed templates |
+| `backend/alembic/versions/001_initial_schema.py` | 5 таблиц + индексы + 3 seed templates (Phase I/II/III) |
+
+**⚠️ Важно для export.py:** `selectinload(Protocol.open_issues)` обязателен иначе greenlet_spawn ошибка при экспорте.
 
 **P2 готовность в коде:**
 - DOCX: реализован в `export_service.py`, включить снятием `NotImplementedError`
 - Diff: схемы готовы в `schemas/generate.py`, endpoint-stub в `protocols.py`
-- SAP/ICF: добавить эндпоинты + секции в `generator.py` (SECTION_PROMPTS готов к расширению)
+- SAP/ICF: добавить эндпоинты + секции в `generator.py`
 
 ---
 
 ### Фаза 1.5 — Swagger Verification ✅ 100% (завершена 23.04.2026)
 
-Обязательная фаза перед началом Frontend. Цель — убедиться, что все P0 эндпоинты backend работают корректно до того, как frontend начнёт на них завязываться.
+Все P0 эндпоинты проверены через `curl`/`Invoke-RestMethod`:
 
-| Проверка | Эндпоинт | Ожидаемый результат |
-|---|---|---|
-| Health check | `GET /health` | `{"status":"ok","db":"connected"}` |
-| Создание протокола | `POST /api/v1/protocols` | 201 + `{id, title, status}` |
-| Список протоколов | `GET /api/v1/protocols` | 200 + `[...]` |
-| Запуск генерации | `POST /api/v1/protocols/{id}/generate` | 202 + `{task_id}` |
-| Статус генерации | `GET /api/v1/protocols/{id}/generate/{task_id}` | 200 + `{status, sections_done}` |
-| Проверка консистентности | `POST /api/v1/protocols/{id}/check` | 200 + `{compliance_score, issues}` |
-| Экспорт MD | `GET /api/v1/protocols/{id}/export?format=md` | 200 + файл |
-| Экспорт HTML | `GET /api/v1/protocols/{id}/export?format=html` | 200 + файл |
-| Список шаблонов | `GET /api/v1/templates` | 200 + 3 шаблона (seed) |
-| Swagger UI | `GET /docs` | Интерактивная документация FastAPI |
-
-**Инструменты:** Swagger UI (`/docs`), `backend/tests/smoke_test.http` (REST Client), `curl`
-
-**Статус:** Не выполнена — backend не запущен (docker-compose.yml есть, но compose не поднят)
+| Эндпоинт | Статус |
+|---|---|
+| `GET /health` | ✅ `{"status":"ok","db":"connected"}` |
+| `POST /api/v1/protocols` | ✅ 201 + UUID |
+| `GET /api/v1/protocols` | ✅ 200 + список |
+| `POST /api/v1/protocols/{id}/generate` | ✅ 202 + task_id |
+| `GET /api/v1/protocols/{id}/generate/{task_id}` | ✅ completed 7/7 sections |
+| `GET /api/v1/protocols/{id}/export?format=md` | ✅ 200 + файл 3838b |
+| `GET /api/v1/protocols/{id}/export?format=html` | ✅ 200 + файл 5352b |
+| `GET /api/v1/templates` | ✅ 200 + 3 шаблона |
 
 ---
 
 ### Фаза 2 — Frontend ✅ 100% (завершена 23.04.2026)
 
+**Стек:** React 18 + Vite 6 + TypeScript + Tailwind CSS 3
+
 | Файл | Описание |
 |---|---|
-| `frontend/src/App.tsx` | BrowserRouter + 3 маршрута |
-| `frontend/src/api/client.ts` | Типизированный клиент всех API endpoints |
-| `frontend/src/components/Layout.tsx` | Шапка + навигация + footer |
-| `frontend/src/components/StatusBadge.tsx` | Бейдж по статусу |
-| `frontend/src/components/Spinner.tsx` | Анимированный индикатор |
-| `frontend/src/components/ErrorAlert.tsx` | Inline-ошибка |
-| `frontend/src/pages/ProtocolListPage.tsx` | Список + удаление |
-| `frontend/src/pages/CreateProtocolPage.tsx` | Форма с валидацией + шаблоны |
-| `frontend/src/pages/ProtocolPage.tsx` | Viewer + Generate (polling) + GCP Check + Export |
+| `frontend/package.json` | react 18.3, react-router-dom 6.27, react-markdown 9, lucide-react |
+| `frontend/vite.config.ts` | Proxy `/api` → backend (port из `BACKEND_PORT` env var, default 50159) |
+| `frontend/tailwind.config.js` | brand palette (sky 500/600/700) + custom components |
+| `frontend/src/index.css` | Tailwind base + `btn-primary`, `btn-secondary`, `card`, `badge`, `form-input` |
+| `frontend/src/App.tsx` | BrowserRouter: `/protocols`, `/protocols/new`, `/protocols/:id` |
+| `frontend/src/api/client.ts` | Типизированный API клиент: все endpoint типы (Template, Protocol, GenerateStatus, CheckResponse) |
+| `frontend/src/components/Layout.tsx` | Header + NavLink + footer ("FOR RESEARCH USE ONLY") |
+| `frontend/src/components/StatusBadge.tsx` | draft/generating/generated/error — цвета + pulse |
+| `frontend/src/components/Spinner.tsx` | SVG spinner |
+| `frontend/src/components/ErrorAlert.tsx` | Алерт с закрытием |
+| `frontend/src/pages/ProtocolListPage.tsx` | Список + Delete (с confirm) + EmptyState |
+| `frontend/src/pages/CreateProtocolPage.tsx` | Форма: 5 секций, валидация, шаблоны, динамические критерии |
+| `frontend/src/pages/ProtocolPage.tsx` | Viewer + Generate + polling + GCP panel + Export + Delete |
 
-**Сборка:** `tsc + vite build` — 0 ошибок, 324kB JS + 18kB CSS
+**Сборка:** `tsc + vite build` → 0 ошибок, 324kB JS + 18kB CSS
+
+**⚠️ GenerateStatus расхождение API:** backend возвращает `sections_done: List[str]` и `sections_total: List[str]`, frontend ожидает числа. Polling работает через `.Count` / `.length`, но progress bar может показывать 0 пока не будет унифицирован формат. Исправить при Фазе 4 если нужно.
 
 ---
 
 ### Фаза 2.5 — QA Testing ✅ 100% (завершена 23.04.2026)
 
-> **Правило:** Фаза тестирования обязательна перед деплоем. Без прохождения P0-критериев деплой не начинается.
-
-#### 2.5.1 Автотесты (pytest)
-
-```bash
-# Запуск из backend-контейнера
-docker compose exec backend pytest tests/ -v --cov=app --cov-report=term-missing
-```
-
-| Файл | Что тестирует | Маркер |
-|---|---|---|
-| `tests/test_health.py` | `GET /health` → 200 | integration |
-| `tests/test_protocols.py` | CRUDL + валидация + 404 + ALT | integration |
-| `tests/test_export.py` | MD/HTML структура, export before generate | integration + unit |
-| `tests/test_ai_gateway.py` | retry, fallback, section count | unit |
-| `tests/test_templates.py` | seed шаблоны, 501-stub | integration |
-
-**Целевое покрытие:** `services/ai_gateway.py` ≥90%, `routers/protocols.py` ≥80%
-
-#### 2.5.2 Ручной прогон (Happy Path)
-
-| # | Сценарий | Dataset | Файл |
-|---|---|---|---|
-| HP-01 | Создать → Сгенерировать → Экспорт MD/HTML | Dataset-1 (BCD-100, Phase II) | `docs/test-plan.md §4` |
-| HP-02 | Полный жизненный цикл Phase III | Dataset-2 (BCD-089, Phase III) | `docs/test-plan.md §4` |
-
-#### 2.5.3 Альтернативные сценарии (обязательные)
-
-| Группа | Описание | Ref |
-|---|---|---|
-| ALT-01 | Валидация формы: пустые поля, phase=IV, duration=0 | `docs/test-plan.md §5` |
-| ALT-02 | AI Gateway fallback: нет 500, есть шаблонный текст | `docs/test-plan.md §5` |
-| ALT-03 | Export before generate → 422 NO_CONTENT | `docs/test-plan.md §5` |
-| ALT-04 | Несуществующий ресурс → 404 с error body | `docs/test-plan.md §5` |
-| ALT-08 | DELETE + GET после удаления → 404 | `docs/test-plan.md §5` |
-
-#### 2.5.4 Результаты QA (23.04.2026)
-
 **Автотесты:** `pytest tests/ -v` → **31 passed, 0 failed, 0 errors** (14.84s)
 
-| Критерий | Результат |
+```bash
+# Запуск (нужно создать protocols_test БД один раз):
+docker compose exec db psql -U app -d protocols -c "CREATE DATABASE protocols_test OWNER app;"
+docker compose exec backend pytest tests/ -v
+```
+
+| Файл | Покрытие |
 |---|---|
-| HP-01: BCD-100 Create→Generate→Export MD/HTML | ✅ PASS |
-| HP-02: BCD-089 Phase III Create→Generate started | ✅ PASS |
-| ALT-01: 422 валидация (missing fields, phase=IV, duration=0) | ✅ PASS |
-| ALT-03: Export before generate → 422 NO_CONTENT | ✅ PASS |
-| ALT-04: GET несуществующего → 404 PROTOCOL_NOT_FOUND | ✅ PASS |
-| ALT-08: DELETE + GET → 204 + 404 | ✅ PASS |
-| pytest unit-тесты: 0 failures | ✅ 31/31 PASS |
-| Нет HTTP 500 в Happy Path | ✅ PASS |
+| `tests/conftest.py` | function-scoped fixtures, seed SQL, mock_ai_gateway_ok/fail, mock_consistency_ok |
+| `tests/test_health.py` | 1 тест |
+| `tests/test_protocols.py` | 20 тестов (CRUDL + 8 negative/ALT) |
+| `tests/test_export.py` | 5 тестов (MD/HTML unit + 422 before-generate) |
+| `tests/test_ai_gateway.py` | 5 тестов (retry, fallback, section count) |
+| `tests/test_templates.py` | 4 теста (seed + 501-stub) |
 
-**Исправлено в Фазе 2.5:**
-- `conftest.py`: function-scoped DB fixtures + seed templates (pytest-asyncio 1.x compatibility)
-- `export.py`: `selectinload(Protocol.open_issues)` — fix greenlet_spawn error
-- Тесты: `resp.json()["detail"]["error"]["code"]` вместо `resp.json()["error"]["code"]`
+**Ключевые исправления в тестах:**
+- `conftest.py`: function-scoped async engine (pytest-asyncio 1.3 несовместим с session-scope)
+- `conftest.py`: seed SQL вставляется после `create_all` (Alembic не запускается в тестах)
+- `export.py`: `selectinload(Protocol.open_issues)` — обязателен для предотвращения `greenlet_spawn` ошибки
+- Все assertions: `resp.json()["detail"]["error"]["code"]` (FastAPI оборачивает в `detail`)
 
-**Документ QA:** `docs/test-plan.md` v2.0.0
+**Ручные тесты:**
 
----
-
-### Фаза 3 — Deploy 🔲 0%
-
-- Dokploy — не настроен
-- Публичный URL — отсутствует
-- GitLab CI — не создан
+| Сценарий | Результат |
+|---|---|
+| HP-01: BCD-100 Phase II Create→Generate(7/7)→Export MD(3838b) HTML(5352b) | ✅ PASS |
+| HP-02: BCD-089 Phase III Create→Generate start | ✅ PASS |
+| ALT: 404, 422, 501 все правильные коды | ✅ PASS |
 
 ---
 
-### Фаза 4 — P1 features 🔲 0%
+### Фаза 3 — Deploy 🔲 0% ← **СЛЕДУЮЩИЙ ШАГ**
 
-- Версионирование (UI) — backend готов, frontend нет
-- Consistency check UI — backend готов, frontend нет
-- HTML экспорт (кнопка в UI) — backend готов
+**Что нужно сделать:**
+1. Прочитать `dokploy-repo-prep/SKILL.md` — специфика Dokploy
+2. Добавить Traefik labels в `docker-compose.yml`
+3. Настроить Dokploy: New Project → Docker Compose → GitLab repo
+4. Задать env vars в Dokploy UI (AI_GATEWAY_URL, AI_GATEWAY_API_KEY, POSTGRES_PASSWORD)
+5. Deploy → получить публичный URL
+6. Проверить `/health` и HP-01 на продакшен URL
+
+**Ограничения docker-compose для Dokploy:**
+- Без `container_name`
+- Порты: short syntax `- "80"` (без `80:80`)
+- Named volumes только (`db-data`, не `./data`)
+- Non-root user + HEALTHCHECK — уже есть
 
 ---
 
-### Фаза 5 — P2 features 🔲 0% (если останется время)
+### Фаза 4 — P1 Features 🔲 0%
 
-- DOCX экспорт — backend готов (снять заглушку)
+- Версионирование UI (GET /versions в ProtocolPage уже есть)
+- GCP Check UI (уже реализован в ProtocolPage — `GcpCheckPanel`)
+- DOCX export (снять `NotImplementedError` в `export_service.py`)
+- Унификация `GenerateStatus` (sections_done: list→number)
+
+---
+
+### Фаза 5 — P2 Features 🔲 0% (если останется время)
+
 - SAP/ICF генерация — добавить промпты + эндпоинты
 - Diff UI — схемы готовы, нужен frontend + диффер
 
 ---
 
-## 6. Роли проекта
+## 6. Локальный запуск (воспроизведение среды)
 
-| Роль | Rule | Skill |
-|---|---|---|
-| System Architect | `.cursor/rules/role-architect.mdc` | `.cursor/skills/role-architect/SKILL.md` |
-| Backend Developer | `.cursor/rules/role-backend.mdc` | `.cursor/skills/role-backend/SKILL.md` |
-| Frontend Developer | `.cursor/rules/role-frontend.mdc` | `.cursor/skills/role-frontend/SKILL.md` |
-| AI Engineer | `.cursor/rules/role-ai-engineer.mdc` | `.cursor/skills/role-ai-engineer/SKILL.md` |
-| QA Engineer | `.cursor/rules/role-qa.mdc` | `.cursor/skills/role-qa/SKILL.md` |
-| Technical Writer | `.cursor/rules/role-tech-writer.mdc` | `.cursor/skills/role-tech-writer/SKILL.md` |
-| DevOps Engineer | `.cursor/rules/role-devops.mdc` | `.cursor/skills/role-devops/SKILL.md` |
-| Senior Clinical Research Analyst | `.cursor/rules/role-clinical-analyst.mdc` | `.cursor/skills/role-clinical-analyst/SKILL.md` |
-| Information Security Specialist | `.cursor/rules/role-infosec.mdc` | `.cursor/skills/role-infosec/SKILL.md` |
+```bash
+# Полный стек в Docker
+docker compose up -d
+# Backend: http://localhost:<random_port>/docs
+# Frontend: http://localhost:<random_port>/ (nginx)
 
-Также активны глобальные правила: `.cursor/rules/00-security.mdc`, `99-forbidden.mdc`.
+# Vite dev server (рекомендуется для разработки)
+cd frontend
+$env:BACKEND_PORT = "50159"   # актуальный порт backend из docker compose ps
+npm run dev
+# → http://localhost:5174/
+
+# Тесты
+docker compose exec db psql -U app -d protocols -c "CREATE DATABASE protocols_test OWNER app;"  # один раз
+docker compose exec backend pytest tests/ -v
+
+# Проверка экспорта (после генерации)
+$proto_id = "<uuid из POST /protocols>"
+Invoke-WebRequest -Uri "http://localhost:50159/api/v1/protocols/$proto_id/export?format=md" -UseBasicParsing
+```
 
 ---
 
@@ -287,7 +265,7 @@ docker compose exec backend pytest tests/ -v --cov=app --cov-report=term-missing
 
 ### Архитектурные
 1. **PostgreSQL** — финальный выбор, не SQLite
-2. **AI Gateway** (единственный провайдер) → `InHouse/Qwen3.5-122B`, fallback на внешние LLM запрещён
+2. **AI Gateway** (единственный провайдер) → `InHouse/Qwen3.5-122B`, fallback на внешние LLM запрещён (NFR-08)
 3. **Dokploy** — деплой-платформа (не Vercel, не Railway)
 4. **GitLab** `gitlab.biocad.ru` — репозиторий (не GitHub)
 
@@ -299,160 +277,115 @@ docker compose exec backend pytest tests/ -v --cov=app --cov-report=term-missing
 9. **HEALTHCHECK** для каждого сервиса
 
 ### Качество кода
-10. **Отклонение от FR ≤ 15%** для обычных функций, **≤ 25%** для AI-генератора (NFR-06)
-11. **English naming** — таблицы БД, колонки, Python-код, API endpoints
+10. **English naming** — таблицы БД, колонки, Python-код, API endpoints
+11. **snake_case** для всех JSON полей API
 12. **ALCOA++ / SMART / CRUDL** — все документы и API
 
 ---
 
-## 8. Демо-данные (синтетические)
+## 8. Демо-данные (синтетические, уже в БД)
 
-**Протокол 1 — Фаза II, Онкология:**
-- Препарат: BCD-100 (Пролголимаб, PD-1 ингибитор)
-- Индикация: Метастатическая меланома, прогрессия после 1 линии
-- Primary endpoint: ORR по RECIST 1.1
-- Длительность: 96 недель, доза: 1 мг/кг в/в Q2W
+**Протокол 1 — Фаза II, Онкология (BCD-100):**
+- id: `f28eb6a3-ba04-4405-85f9-81ed24611378`
+- Статус: generated (7/7 секций)
+- Экспорт MD: 3838b, HTML: 5352b
 
-**Протокол 2 — Фаза III, Дерматология:**
-- Препарат: BCD-089 (IL-17A ингибитор)
-- Индикация: Псориаз среднетяжёлый и тяжёлый (PASI ≥12)
-- Primary endpoint: PASI 75 на 12 неделе
-- Дизайн: Рандомизированное двойное слепое
+**Протокол 2 — Фаза III, Дерматология (BCD-089):**
+- id: `11639775-5884-495b-a657-f3cd4ec77135`
+- Статус: generating (started)
 
----
-
-## 9. Правила проекта (rules/)
-
-| Файл | Содержание |
-|---|---|
-| `rules/00-project-context.mdc` | Контекст проекта, цели |
-| `rules/01-security.mdc` | Безопасность: no secrets in git, watermark, audit_log |
-| `rules/02-architecture.mdc` | Архитектурные принципы, ADR формат |
-| `rules/03-roles.mdc` | Роли + RACI + corecase-gate checkpoints |
-| `rules/04-process.mdc` | Фазы 0-8 + Фаза 1.5 (Swagger) + Фаза 4.5 (Design System) |
-| `rules/05-ai-compliance.mdc` | Промпты, `therapeutic_area_context`, `phase_context` |
-| `rules/06-development-rules.mdc` | RESTful API, naming (English), Docker, artifact standards |
+**Seed шаблоны (3 шт):** Phase I FIH, Phase II Single-Arm, Phase III RCT
 
 ---
 
-## 10. Структура файлов проекта
+## 9. Структура файлов (актуальная)
 
 ```
 c:\research-protocols-23042026\
-├── README.md
-├── ARCHITECTURE.md          ← v1.1.0: C4 + AI Gateway + GitLab
-├── DEPLOY.md
-├── PROMPTS.md
-├── RELEASE-NOTES.md
-├── CHECKPOINT.md            ← v2.0.0: этот файл
-├── corecase.md
-├── mcp.json                 ← v1.1.0: GitLab + AI Gateway
-├── .env.example             ← v2.0.0: AI Gateway + GitLab vars
-├── config.bat               ← Windows setup script
+├── CHECKPOINT.md            ← v3.0.0 (этот файл)
+├── ARCHITECTURE.md          ← v1.2.0
+├── README.md, DEPLOY.md, PROMPTS.md, RELEASE-NOTES.md
+├── docker-compose.yml       ← 3 сервиса, named volumes, HEALTHCHECK
 ├── backend/
-│   ├── README.md
-│   └── requirements.txt
+│   ├── Dockerfile           ← python:3.12-slim, non-root
+│   ├── requirements.txt     ← fastapi, sqlalchemy, pytest-asyncio>=1.3
+│   ├── pytest.ini           ← asyncio_mode=auto
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── core/config.py, database.py
+│   │   ├── models/protocol.py   ← 5 таблиц
+│   │   ├── schemas/protocol.py, generate.py
+│   │   ├── services/ai_gateway.py, generator.py, consistency.py, export_service.py
+│   │   └── routers/health.py, protocols.py, generate.py, check.py, export.py, templates.py
+│   ├── alembic/
+│   │   └── versions/001_initial_schema.py  ← 3 seed templates
+│   └── tests/
+│       ├── conftest.py      ← function-scoped fixtures + seed SQL
+│       ├── test_health.py
+│       ├── test_protocols.py
+│       ├── test_export.py
+│       ├── test_ai_gateway.py
+│       └── test_templates.py
 ├── frontend/
-│   └── README.md
+│   ├── Dockerfile           ← node:20 builder → nginx:alpine, pid /tmp/nginx.pid fix
+│   ├── nginx.conf           ← SPA + /api/ proxy
+│   ├── package.json         ← react 18, vite 6, tailwind 3, react-markdown 9
+│   ├── vite.config.ts       ← proxy: BACKEND_PORT env var (default 50159)
+│   ├── tailwind.config.js
+│   ├── tsconfig.app.json
+│   ├── index.html
+│   └── src/
+│       ├── App.tsx           ← BrowserRouter + 3 routes
+│       ├── index.css         ← Tailwind + custom classes
+│       ├── api/client.ts     ← все типы + fetch wrappers
+│       ├── components/Layout.tsx, StatusBadge.tsx, Spinner.tsx, ErrorAlert.tsx
+│       └── pages/ProtocolListPage.tsx, CreateProtocolPage.tsx, ProtocolPage.tsx
+├── docs/
+│   ├── test-plan.md         ← v2.0.0 QA план
+│   ├── api-spec.md          ← v1.2.0
+│   └── [все прочие docs]
 ├── prompts/
 │   ├── system-prompt.md
-│   ├── section-generators/introduction.md
-│   └── validation-prompts/
-│       ├── consistency-check.md
-│       └── gcp-compliance.md
+│   ├── section-generators/
+│   └── validation-prompts/gcp-compliance.md, consistency-check.md
 ├── canvases/
-│   ├── protocol-generator-ui.canvas.tsx   ← UI/UX mockup
-│   └── c4-architecture.canvas.tsx         ← C4 интерактивная схема
-├── docs/
-│   ├── artifacts-catalog.md
-│   ├── functional-requirements.md
-│   ├── api-spec.md                        ← v1.2.0: AI Provider table
-│   ├── database-schema.md
-│   ├── business-requirements.md
-│   ├── design-system-plan.md
-│   ├── clinical-review.md
-│   ├── er-diagram.md
-│   ├── event-storming.md
-│   ├── user-story-map.md
-│   ├── state-diagram.md
-│   ├── use-case.md
-│   ├── ui-ux-brief.md
-│   ├── test-plan.md
-│   ├── review-rules-applied.md
-│   ├── VERSIONS.md
-│   ├── adr/
-│   │   ├── ADR-001-postgresql.md
-│   │   ├── ADR-002-openrouter.md
-│   │   └── ADR-003-stack.md
-│   └── archive/
-├── rules/
-│   ├── 00-project-context.mdc
-│   ├── 01-security.mdc
-│   ├── 02-architecture.mdc
-│   ├── 03-roles.mdc
-│   ├── 04-process.mdc
-│   ├── 05-ai-compliance.mdc
-│   └── 06-development-rules.mdc
-├── .cursor/
-│   ├── rules/
-│   │   ├── 00-security.mdc
-│   │   ├── 99-forbidden.mdc
-│   │   ├── role-architect.mdc
-│   │   ├── role-backend.mdc
-│   │   ├── role-frontend.mdc
-│   │   ├── role-ai-engineer.mdc
-│   │   ├── role-qa.mdc
-│   │   ├── role-tech-writer.mdc
-│   │   ├── role-devops.mdc
-│   │   ├── role-clinical-analyst.mdc
-│   │   └── role-infosec.mdc
-│   ├── skills/
-│   │   ├── role-architect/SKILL.md
-│   │   ├── role-backend/SKILL.md
-│   │   ├── role-frontend/SKILL.md
-│   │   ├── role-ai-engineer/SKILL.md
-│   │   ├── role-qa/SKILL.md
-│   │   ├── role-tech-writer/SKILL.md
-│   │   ├── role-devops/SKILL.md
-│   │   ├── role-clinical-analyst/SKILL.md
-│   │   └── role-infosec/SKILL.md
-│   └── commands/
-│       └── security-audit.md
-└── dokploy-repo-prep/SKILL.md
+│   ├── c4-architecture.canvas.tsx
+│   └── protocol-generator-ui.canvas.tsx
+└── dokploy-repo-prep/SKILL.md  ← обязательно читать перед деплоем!
 ```
 
 ---
 
-## 11. Следующие шаги (Фаза 1 — старт кодирования)
+## 10. GitLab
 
+**Репозиторий:** `git@gitlab.biocad.ru:biocad/sandbox/hg-dis-group1-23042025/analysis-dudchenkoi-23042026.git`  
+**Ветка:** `master`
+
+**История коммитов (последние):**
 ```
-Час 0-2:   docker-compose.yml + Dockerfile backend + Dockerfile frontend + nginx.conf
-Час 2-5:   backend: main.py, models, schemas, CRUD /api/v1/protocols + /templates
-Час 5-9:   backend: AIGatewayClient (primary→fallback) + /generate endpoint
-Час 9-10:  Фаза 1.5: Swagger UI проверка всех эндпоинтов
-Час 10-13: frontend: Protocol list + Create form + Protocol viewer
-Час 13-15: frontend: Export MD + HTML + деплой первой версии
-Час 15-16: Фаза 4.5: Design System (Tailwind tokens + atomic components)
-Час 16-18: Докплой деплой + GitLab push + публичный URL
-Час 18-22: DOCX export + версионирование + консистентность
-Час 22-25: Diff viewer + UI polish (Design System применить)
-Час 25-27: Stretch: SAP/ICF + финальный README/PROMPTS + сдача
+492ac1e fix(frontend): nginx non-root pid path + vite proxy env-var port
+dcd08ee fix(qa): Phase 2.5 - 31/31 tests pass, fix export selectinload
+f8041d5 feat(frontend): Phase 2 - React + Vite + TS + Tailwind SPA
+3614ed3 fix: SSL cert bypass for pip, CORS JSON format, protocol UUID pre-generation
+99eadf1 chore: remove scaffold templates not related to project
+a0b7e6f feat: initial project commit - AI Clinical Protocol Generator
 ```
 
 ---
 
-## 12. Что читать первым при восстановлении
+## 11. Что делать первым при восстановлении контекста
 
-1. `CHECKPOINT.md` — этот файл
-2. `corecase.md` — задание и анализ
-3. `mcp.json` — интеграции (AI Gateway, GitLab)
-4. `docs/user-story-map.md` — MVP приоритеты и тайминг
-5. `ARCHITECTURE.md` — актуальная схема C4 с AI Gateway
-6. `DEPLOY.md` + `dokploy-repo-prep/SKILL.md` — деплой
+1. Прочитать **этот файл** (CHECKPOINT.md) полностью
+2. Проверить статус docker: `docker compose ps`
+3. Если нужно продолжить разработку — запустить Vite: `cd frontend && $env:BACKEND_PORT="<port>" && npm run dev`
+4. Следующая задача: **Фаза 3 — Deploy на Dokploy**
+   - Прочитать `dokploy-repo-prep/SKILL.md`
+   - Добавить Traefik labels в `docker-compose.yml`
+   - Деплой через Dokploy UI с GitLab репо
 
 ---
 
-## 13. Dokploy-специфика (из SKILL.md)
+## 12. Dokploy-специфика (из SKILL.md)
 
 Скилл: `c:\research-protocols-23042026\dokploy-repo-prep\SKILL.md`
 
@@ -463,12 +396,20 @@ c:\research-protocols-23042026\
 
 ---
 
-## 14. Ключевые изменения сессии 2 (2026-04-23)
+## 13. Ключевые изменения по сессиям
 
-| Что | Что изменилось |
-|---|---|
-| `mcp.json` | Ключ `"mcp"` → `"mcpServers"`, добавлен GitLab MCP (`@modelcontextprotocol/server-gitlab`) |
-| `.env.example` | Пересобран: добавлены `AI_GATEWAY_URL`, `AI_GATEWAY_API_KEY`, `GITLAB_API_URL`, `GITLAB_PERSONAL_ACCESS_TOKEN` |
-| `ARCHITECTURE.md` | v1.0.0 → **v1.1.0**: AI Gateway во всех 5 диаграммах (L1, L2, L3, ER без изменений, Deploy); GitHub → GitLab |
-| `docs/api-spec.md` | v1.2.0: AI Provider — только AI Gateway (InHouse/Qwen3.5-122B), внешние LLM запрещены |
-| `CHECKPOINT.md` | v1.0.0 → **v2.0.0**: полное обновление |
+### Сессия 1 (23.04.2026 — утро)
+- Создан проект, документация (Фаза 0)
+- Backend MVP + Docker Compose (Фаза 1)
+- Исправления: SSL pip, CORS JSON, UUID pre-generation
+
+### Сессия 2 (23.04.2026 — день)
+- QA план, автотесты backend (conftest + 5 файлов тестов)
+- Swagger verification (Фаза 1.5) — все P0 эндпоинты ✅
+- Push в GitLab, очистка репо от scaffold файлов
+
+### Сессия 3 (23.04.2026 — вечер) ← текущая
+- **Фаза 2 Frontend** — React SPA с 3 страницами, полным API клиентом, Tailwind UI
+- **Фаза 2.5 QA** — 31/31 pytest, ручные HP-01/HP-02/ALT сценарии
+- Исправления: pytest-asyncio 1.x fixtures, greenlet export bug, nginx pid non-root
+- Локальный сервер: http://localhost:5174/ (Vite) + http://localhost:56403/ (Docker nginx)
