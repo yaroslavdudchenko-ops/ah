@@ -1,6 +1,6 @@
 # Реестр версий документации
 
-**Version:** 1.2.0 | **Date:** 2026-04-23
+**Version:** 1.3.0 | **Date:** 2026-04-23
 
 Правила версионирования:
 - **MAJOR** — структурные изменения документа (переработка разделов)
@@ -19,35 +19,37 @@
 |---|---|---|---|
 | `README.md` | 2.0.0 | 2026-04-23 | Active |
 | `ARCHITECTURE.md` | 1.2.0 | 2026-04-23 | Active |
+| `CHECKPOINT.md` | 6.0.0 | 2026-04-23 | Active |
 | `DEPLOY.md` | 1.0.0 | 2026-04-23 | Draft |
 | `PROMPTS.md` | 1.0.0 | 2026-04-23 | Active |
-| `CHECKPOINT.md` | 6.0.0 | 2026-04-23 | Active |
+| `RELEASE-NOTES.md` | 1.0.0 | 2026-04-23 | Draft |
+| `.env.example` | 1.0.0 | 2026-04-23 | Active |
+| `docs/artifacts-catalog.md` | 1.2.0 | 2026-04-23 | Active |
+| `docs/VERSIONS.md` | 1.3.0 | 2026-04-23 | Active |
 | `docs/functional-requirements.md` | 1.2.0 | 2026-04-23 | Active |
 | `docs/business-requirements.md` | 1.0.0 | 2026-04-23 | Draft |
-| `docs/design-system-plan.md` | 1.0.0 | 2026-04-23 | Planned |
 | `docs/api-spec.md` | 1.5.0 | 2026-04-23 | Active |
-| `docs/adr/ADR-001-postgresql.md` | 1.0.0 | 2026-04-23 | Accepted |
-| `docs/adr/ADR-002-openrouter.md` | 2.0.0 | 2026-04-23 | Accepted (AI Gateway only, внешние LLM запрещены) |
-| `docs/adr/ADR-003-stack.md` | 1.0.0 | 2026-04-23 | Accepted |
+| `docs/test-plan.md` | 3.2.0 | 2026-04-23 | Active |
+| `docs/manual-test-guide.md` | 1.0.0 | 2026-04-23 | Active |
+| `docs/debug-guide.md` | 1.0.0 | 2026-04-23 | Active |
 | `docs/database-schema.md` | 1.0.0 | 2026-04-23 | Draft |
 | `docs/review-rules-applied.md` | 1.0.0 | 2026-04-23 | Active |
-| `prompts/system-prompt.md` | 1.0.0 | 2026-04-23 | Draft |
-| `prompts/section-generators/introduction.md` | 1.0.0 | 2026-04-23 | Draft |
-| `prompts/validation-prompts/consistency-check.md` | 1.0.0 | 2026-04-23 | Draft |
-| `.env.example` | 1.0.0 | 2026-04-23 | Active |
+| `docs/design-system-plan.md` | 1.0.0 | 2026-04-23 | Planned |
 | `docs/ui-ux-brief.md` | 1.0.0 | 2026-04-23 | Draft |
-| `backend/README.md` | 1.0.0 | 2026-04-23 | Draft |
-| `frontend/README.md` | 1.0.0 | 2026-04-23 | Draft |
-| `docs/artifacts-catalog.md` | 1.0.0 | 2026-04-23 | Active |
 | `docs/event-storming.md` | 1.0.0 | 2026-04-23 | Draft |
 | `docs/user-story-map.md` | 1.0.0 | 2026-04-23 | Draft |
 | `docs/state-diagram.md` | 1.0.0 | 2026-04-23 | Draft |
 | `docs/er-diagram.md` | 1.0.0 | 2026-04-23 | Draft |
 | `docs/use-case.md` | 1.0.0 | 2026-04-23 | Draft |
-| `RELEASE-NOTES.md` | 1.0.0 | 2026-04-23 | Draft |
-| `docs/test-plan.md` | 3.2.0 | 2026-04-23 | Active |
-| `docs/manual-test-guide.md` | 1.0.0 | 2026-04-23 | Active |
+| `docs/adr/ADR-001-postgresql.md` | 1.0.0 | 2026-04-23 | Accepted |
+| `docs/adr/ADR-002-openrouter.md` | 2.0.0 | 2026-04-23 | Accepted |
+| `docs/adr/ADR-003-stack.md` | 1.0.0 | 2026-04-23 | Accepted |
+| `prompts/system-prompt.md` | 1.0.0 | 2026-04-23 | Draft |
+| `prompts/section-generators/introduction.md` | 1.0.0 | 2026-04-23 | Draft |
+| `prompts/validation-prompts/consistency-check.md` | 1.0.0 | 2026-04-23 | Draft |
 | `prompts/validation-prompts/gcp-compliance.md` | 1.2.0 | 2026-04-23 | Active |
+| `backend/README.md` | 1.0.0 | 2026-04-23 | Draft |
+| `frontend/README.md` | 1.0.0 | 2026-04-23 | Draft |
 
 ---
 
