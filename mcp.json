@@ -37,12 +37,13 @@
       "name": "AI Gateway",
       "options": {
         "baseURL": "${AI_GATEWAY_URL}",
-        "apiKey": "${AI_GATEWAY_API_KEY}"
+        "apiKey": "${AI_GATEWAY_API_KEY}",
+        "model": "${AI_GATEWAY_MODEL}"
       }
     },
     "models": {
-      "InHouse/Qwen3.5-122B": {
-        "name": "InHouse/Qwen3.5-122B"
+      "default": {
+        "name": "${AI_GATEWAY_MODEL}"
       }
     }
   }

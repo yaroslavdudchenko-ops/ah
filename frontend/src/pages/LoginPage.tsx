@@ -1,6 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { FlaskConical, LogIn, Eye, EyeOff } from 'lucide-react'
+import { Sparkles, LogIn, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -44,11 +44,14 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center w-12 h-12 bg-brand-600 rounded-xl mb-3">
-            <FlaskConical className="w-6 h-6 text-white" />
+          <div
+            className="flex items-center justify-center w-14 h-14 rounded-2xl mb-4 shadow-lg"
+            style={{ background: 'linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #22d3ee 100%)' }}
+          >
+            <Sparkles className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900">AI Protocol Generator</h1>
-          <p className="text-sm text-gray-500 mt-0.5">InHouse/Qwen3.5-122B · GCP/ICH</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Synthia</h1>
+          <p className="text-sm text-gray-500 mt-1">AI Protocol Generator</p>
         </div>
 
         {/* Card */}

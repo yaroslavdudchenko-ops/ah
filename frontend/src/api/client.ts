@@ -48,11 +48,19 @@ export const api = {
   getTemplates: () => request<Template[]>('/templates'),
 
   // Protocols
-  listProtocols: (params?: { limit?: number; offset?: number; phase?: string }) => {
+  listProtocols: (params?: {
+    limit?: number; offset?: number;
+    phase?: string; tag?: string;
+    status?: string; therapeutic_area?: string; search?: string;
+  }) => {
     const q = new URLSearchParams()
     if (params?.limit) q.set('limit', String(params.limit))
     if (params?.offset) q.set('offset', String(params.offset))
     if (params?.phase) q.set('phase', params.phase)
+    if (params?.tag) q.set('tag', params.tag)
+    if (params?.status) q.set('status', params.status)
+    if (params?.therapeutic_area) q.set('therapeutic_area', params.therapeutic_area)
+    if (params?.search) q.set('search', params.search)
     return request<ProtocolListItem[]>(`/protocols?${q}`)
   },
   createProtocol: (body: ProtocolCreate) =>
@@ -84,6 +92,27 @@ export const api = {
   // Check
   checkConsistency: (id: string) =>
     request<CheckResponse>(`/protocols/${id}/check`, { method: 'POST', body: '{}' }),
+
+  // Tags
+  getAllTags: () => request<string[]>('/tags'),
+
+  // Audit Trail
+  listAuditLog: (params?: { from_date?: string; to_date?: string; action?: string; performed_by?: string; limit?: number; offset?: number }) => {
+    const q = new URLSearchParams()
+    if (params?.from_date)    q.set('from_date', params.from_date)
+    if (params?.to_date)      q.set('to_date', params.to_date)
+    if (params?.action)       q.set('action', params.action)
+    if (params?.performed_by) q.set('performed_by', params.performed_by)
+    if (params?.limit)        q.set('limit', String(params.limit))
+    if (params?.offset)       q.set('offset', String(params.offset))
+    return request<AuditEntry[]>(`/audit-log?${q}`)
+  },
+  listProtocolAudit: (id: string, params?: { from_date?: string; to_date?: string }) => {
+    const q = new URLSearchParams()
+    if (params?.from_date) q.set('from_date', params.from_date)
+    if (params?.to_date)   q.set('to_date', params.to_date)
+    return request<AuditEntry[]>(`/protocols/${id}/audit?${q}`)
+  },
 
   // Export
   exportProtocol: async (id: string, format: 'md' | 'html' | 'docx') => {
@@ -122,6 +151,7 @@ export interface ProtocolCreate {
   dosing: string
   inclusion_criteria: string[]
   exclusion_criteria: string[]
+  tags: string[]
   template_id?: string
 }
 
@@ -136,9 +166,13 @@ export interface ProtocolListItem {
   id: string
   title: string
   drug_name: string
+  inn?: string
   phase: string
   status: string
+  therapeutic_area?: string
+  tags: string[]
   updated_at: string
+  created_at?: string
 }
 
 export interface ProtocolVersion {
@@ -166,6 +200,16 @@ export interface IssueItem {
   section: string
   description: string
   suggestion?: string
+}
+
+export interface AuditEntry {
+  id: string
+  entity_type: string
+  entity_id: string
+  action: string
+  performed_by: string
+  metadata: Record<string, unknown>
+  created_at: string
 }
 
 export interface CheckResponse {

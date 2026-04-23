@@ -1,11 +1,33 @@
 # REST API Specification
 
-**Version:** 1.2.0 | **Date:** 2026-04-23 | **Status:** Draft  
+**Version:** 1.5.0 | **Date:** 2026-04-23 | **Status:** Active  
 **Author:** System Architect  
 **Standards:** CRUDL (полное покрытие операций для каждой сущности), ALCOA++
 
 Base URL: `/api/v1`  
 Content-Type: `application/json`
+
+### Аутентификация
+
+Все эндпоинты (кроме `/health`, `/auth/token`) требуют JWT Bearer token:
+
+```
+Authorization: Bearer <access_token>
+```
+
+Токен получается через `POST /auth/token` (OAuth2 Password Flow).
+
+### RBAC — Матрица ролей
+
+| Операция | admin | employee | auditor |
+|---|---|---|---|
+| GET (любой) | ✅ | ✅ | ✅ |
+| POST /protocols | ✅ | ✅ | ❌ 403 |
+| PATCH /protocols/{id} | ✅ | ✅ | ❌ 403 |
+| DELETE /protocols/{id} | ✅ | ❌ 403 | ❌ 403 |
+| POST /generate | ✅ | ✅ | ❌ 403 |
+| POST /check | ✅ | ✅ | ❌ 403 |
+| GET /audit-log | ✅ | ✅ | ✅ |
 
 ### AI Provider
 
@@ -27,6 +49,88 @@ Content-Type: `application/json`
 | Template | POST /templates *(P2)* | GET /templates/{id} *(P2)* | PUT /templates/{id} *(P2)* | DELETE /templates/{id} *(P2)* | GET /templates |
 | ProtocolVersion | via /generate | GET /protocols/{id}/versions/{vid} | N/A (immutable) | N/A (cascade) | GET /protocols/{id}/versions |
 | OpenIssue | via /check | GET /protocols/{id}/open-issues | PATCH /open-issues/{id} | N/A (cascade) | included in GET |
+
+---
+
+## Аутентификация
+
+### POST /auth/token
+OAuth2 Password Flow — получить JWT access token.
+
+**Request** (`application/x-www-form-urlencoded`)
+```
+grant_type=password&username=admin&password=admin_password
+```
+
+**Response 200**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "role": "admin",
+  "username": "admin"
+}
+```
+
+**Response 401** — неверный логин/пароль.
+
+---
+
+### GET /auth/me
+Получить информацию о текущем пользователе.
+
+**Response 200**
+```json
+{
+  "username": "admin",
+  "role": "admin"
+}
+```
+
+---
+
+## Аудиторский след
+
+### GET /audit-log
+Глобальный журнал всех действий пользователей. Доступен всем ролям (read-only).
+
+**Query params:**
+- `from_date` — фильтр дат от (YYYY-MM-DD, включительно)
+- `to_date` — фильтр дат до (YYYY-MM-DD, включительно)
+- `action` — фильтр по действию (`create`, `update`, `delete`, `ai_generate`, `consistency_check`, `export`, `section_regenerate`)
+- `performed_by` — фильтр по имени пользователя
+- `limit` — количество записей (default 100, max 500)
+- `offset` — смещение
+
+**Response 200**
+```json
+[
+  {
+    "id": "uuid",
+    "entity_type": "protocol",
+    "entity_id": "uuid",
+    "action": "ai_generate",
+    "performed_by": "employee",
+    "metadata": {
+      "role": "employee",
+      "model": "InHouse/Qwen3.5-122B",
+      "duration_ms": 12450,
+      "title": "Протокол BCD-100 Фаза II",
+      "version": 3
+    },
+    "created_at": "2026-04-23T18:00:00Z"
+  }
+]
+```
+
+---
+
+### GET /protocols/{id}/audit
+Аудиторский след конкретного протокола. Доступен всем ролям.
+
+**Query params:** `from_date`, `to_date`, `limit`, `offset`
+
+**Response 200** — аналогично `GET /audit-log`, но только события этого протокола.
 
 ---
 
@@ -158,27 +262,36 @@ Content-Type: `application/json`
 ---
 
 ### GET /protocols
-Список протоколов.
+Список протоколов с поиском и фильтрацией.
 
-**Query params:** `page=1&size=20`
+**Query params:**
 
-**Response 200**
+| Параметр | Тип | Описание |
+|---|---|---|
+| `limit` | int | Макс. количество записей (default: 50, max: 100) |
+| `offset` | int | Смещение для пагинации |
+| `search` | string | Поиск по title и drug_name (case-insensitive, contains) |
+| `phase` | string | Фильтр по фазе: `phase_1` \| `phase_2` \| `phase_3` \| `phase_4` |
+| `status` | string | Фильтр по статусу: `draft` \| `generated` \| `approved` |
+| `therapeutic_area` | string | Фильтр по терапевтической области (contains) |
+| `tag` | string | Фильтр по тегу (точное вхождение в массив) |
+
+**Response 200** — массив объектов `ProtocolListItem`:
 ```json
-{
-  "items": [
-    {
-      "id": "uuid",
-      "title": "...",
-      "phase": "II",
-      "indication": "...",
-      "status": "draft",
-      "updated_at": "..."
-    }
-  ],
-  "total": 1,
-  "page": 1,
-  "size": 20
-}
+[
+  {
+    "id": "uuid",
+    "title": "BCD-100 Phase II Study",
+    "drug_name": "BCD-100",
+    "inn": "Пролголимаб",
+    "phase": "phase_2",
+    "therapeutic_area": "Онкология",
+    "status": "generated",
+    "tags": ["онкология", "phase-2"],
+    "updated_at": "2026-04-23T20:35:00Z",
+    "created_at": "2026-04-23T20:00:00Z"
+  }
+]
 ```
 
 ---
@@ -293,6 +406,24 @@ Content-Type: `application/json`
 ```
 
 `status`: `pending` | `running` | `completed` | `failed`
+
+---
+
+### POST /protocols/{id}/sections/{section_key}/regenerate
+Перегенерация отдельной секции протокола (FR-03.5). Требует роль `admin` или `employee`.
+
+**Path params:** `section_key` — ключ секции (`introduction`, `objectives`, `design`, `population`, `dosing`, `efficacy`, `safety`, `statistics`, `ethics`)
+
+**Response 202**
+```json
+{
+  "task_id": "uuid",
+  "section": "statistics",
+  "status": "pending"
+}
+```
+
+Статус отслеживается через `GET /protocols/{id}/generate/{task_id}`.
 
 ---
 

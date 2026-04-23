@@ -7,7 +7,7 @@ class ProtocolCreate(BaseModel):
     title: str = Field(..., min_length=5, max_length=500)
     drug_name: str = Field(..., min_length=2, max_length=200)
     inn: str = Field(..., min_length=2, max_length=200)
-    phase: str = Field(..., pattern="^(I|II|III)$")
+    phase: str = Field(..., pattern="^(I|II|III|IV)$")
     therapeutic_area: str = Field(..., min_length=2, max_length=200)
     indication: str = Field(..., min_length=10)
     population: str = Field(..., min_length=10, max_length=1000)
@@ -17,13 +17,14 @@ class ProtocolCreate(BaseModel):
     dosing: str = Field(..., min_length=5)
     inclusion_criteria: List[str] = Field(default_factory=list)
     exclusion_criteria: List[str] = Field(default_factory=list)
+    tags: List[str] = Field(default_factory=list)
     template_id: Optional[str] = None
 
     @field_validator("phase")
     @classmethod
     def validate_phase(cls, v: str) -> str:
-        if v not in ("I", "II", "III"):
-            raise ValueError("phase must be I, II, or III")
+        if v not in ("I", "II", "III", "IV"):
+            raise ValueError("phase must be I, II, III, or IV")
         return v
 
 
@@ -31,7 +32,7 @@ class ProtocolUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=5, max_length=500)
     drug_name: Optional[str] = Field(None, min_length=2, max_length=200)
     inn: Optional[str] = Field(None, min_length=2, max_length=200)
-    phase: Optional[str] = Field(None, pattern="^(I|II|III)$")
+    phase: Optional[str] = Field(None, pattern="^(I|II|III|IV)$")
     therapeutic_area: Optional[str] = None
     indication: Optional[str] = None
     population: Optional[str] = None
@@ -42,6 +43,7 @@ class ProtocolUpdate(BaseModel):
     inclusion_criteria: Optional[List[str]] = None
     exclusion_criteria: Optional[List[str]] = None
     status: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
 class ProtocolResponse(BaseModel):
@@ -60,6 +62,7 @@ class ProtocolResponse(BaseModel):
     inclusion_criteria: List[str]
     exclusion_criteria: List[str]
     status: str
+    tags: List[str] = []
     template_id: Optional[str]
     created_at: datetime
     updated_at: datetime
@@ -74,6 +77,7 @@ class ProtocolListItem(BaseModel):
     phase: str
     therapeutic_area: str
     status: str
+    tags: List[str] = []
     created_at: datetime
     updated_at: datetime
 

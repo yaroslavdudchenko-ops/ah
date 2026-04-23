@@ -2,14 +2,18 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Zap, Download, Shield, Trash2, CheckCircle2,
-  AlertTriangle, Info, FileText, RefreshCcw, RotateCcw
+  AlertTriangle, Info, FileText, RefreshCcw, RotateCcw, Clock, User, Activity, Tag
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { api, type Protocol, type ProtocolVersion, type GenerateStatus, type CheckResponse } from '../api/client'
+import { api, type Protocol, type ProtocolVersion, type GenerateStatus, type CheckResponse, type AuditEntry } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import StatusBadge from '../components/StatusBadge'
+import TagInput from '../components/TagInput'
+import TagBadge from '../components/TagBadge'
 import Spinner from '../components/Spinner'
 import ErrorAlert from '../components/ErrorAlert'
+import SynthiaOrb from '../components/SynthiaOrb'
+import DraftModal from '../components/DraftModal'
 
 const SECTION_LABELS: Record<string, string> = {
   title_page:  'Титульная страница',
@@ -29,13 +33,40 @@ const SECTION_LABELS: Record<string, string> = {
 
 const POLL_INTERVAL = 2500
 
+const ACTION_LABELS: Record<string, string> = {
+  create:            'Создание',
+  update:            'Обновление',
+  delete:            'Удаление',
+  ai_generate:       'AI Генерация',
+  section_regenerate:'Перегенерация секции',
+  consistency_check: 'GCP-проверка',
+  export:            'Экспорт',
+}
+
+const ACTION_COLORS: Record<string, string> = {
+  create:            'bg-emerald-50 text-emerald-700 border-emerald-200',
+  update:            'bg-sky-50 text-sky-700 border-sky-200',
+  delete:            'bg-red-50 text-red-700 border-red-200',
+  ai_generate:       'bg-violet-50 text-violet-700 border-violet-200',
+  section_regenerate:'bg-indigo-50 text-indigo-700 border-indigo-200',
+  consistency_check: 'bg-amber-50 text-amber-700 border-amber-200',
+  export:            'bg-gray-50 text-gray-600 border-gray-200',
+}
+
+type PageTab = 'content' | 'audit'
+
 export default function ProtocolPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { isReadOnly, user } = useAuth()
   const canDelete = user?.role === 'admin'
 
+  const [tab, setTab] = useState<PageTab>('content')
   const [protocol, setProtocol]           = useState<Protocol | null>(null)
+  const [allTags, setAllTags]             = useState<string[]>([])
+  const [editingTags, setEditingTags]     = useState(false)
+  const [draftTags, setDraftTags]         = useState<string[]>([])
+  const [savingTags, setSavingTags]       = useState(false)
   const [versions, setVersions]           = useState<ProtocolVersion[]>([])
   const [activeVersion, setActiveVersion] = useState<ProtocolVersion | null>(null)
   const [generateStatus, setGenerateStatus] = useState<GenerateStatus | null>(null)
@@ -43,6 +74,11 @@ export default function ProtocolPage() {
   const [taskId, setTaskId]               = useState<string | null>(null)
   const [regenSection, setRegenSection]   = useState<string | null>(null)
   const [comment, setComment]             = useState('')
+  const [auditLogs, setAuditLogs]         = useState<AuditEntry[]>([])
+  const [auditLoading, setAuditLoading]   = useState(false)
+  const [auditFrom, setAuditFrom]         = useState('')
+  const [auditTo, setAuditTo]             = useState('')
+  const [showDraft, setShowDraft]         = useState(false)
 
   const [loading, setLoading]     = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -75,6 +111,40 @@ export default function ProtocolPage() {
   }, [id])
 
   useEffect(() => { loadProtocol() }, [loadProtocol])
+
+  useEffect(() => { api.getAllTags().then(setAllTags).catch(() => {}) }, [])
+
+  const handleSaveTags = async () => {
+    if (!id) return
+    setSavingTags(true)
+    try {
+      await api.updateProtocol(id, { tags: draftTags })
+      setProtocol(p => p ? { ...p, tags: draftTags } : p)
+      setEditingTags(false)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSavingTags(false)
+    }
+  }
+
+  const loadAudit = useCallback(async () => {
+    if (!id) return
+    setAuditLoading(true)
+    try {
+      const data = await api.listProtocolAudit(id, {
+        from_date: auditFrom || undefined,
+        to_date:   auditTo   || undefined,
+      })
+      setAuditLogs(data)
+    } catch {
+      /* ignore */
+    } finally {
+      setAuditLoading(false)
+    }
+  }, [id, auditFrom, auditTo])
+
+  useEffect(() => { if (tab === 'audit') loadAudit() }, [tab, loadAudit])
 
   // Poll generation / regen status
   useEffect(() => {
@@ -210,6 +280,13 @@ export default function ProtocolPage() {
 
           {hasContent && (
             <>
+              <button
+                onClick={() => setShowDraft(true)}
+                className="btn-secondary"
+                title="Просмотр полного черновика документа"
+              >
+                <FileText className="w-4 h-4" /> Черновик
+              </button>
               {!isReadOnly && (
                 <button onClick={handleCheck} disabled={checking || generating} className="btn-secondary">
                   {checking ? <><Spinner size={16} /> Проверка...</> : <><Shield className="w-4 h-4" /> GCP-проверка</>}
@@ -250,28 +327,84 @@ export default function ProtocolPage() {
         </div>
       )}
 
-      {/* Generation progress */}
+      {/* Generation progress — Synthia Orb */}
       {generating && generateStatus && (
-        <div className="card p-4">
-          <div className="flex items-center gap-3 mb-2">
-            <Spinner size={18} />
-            <span className="text-sm font-medium text-gray-700">
-              {regenSection
-                ? `Перегенерация раздела: ${SECTION_LABELS[regenSection] ?? regenSection}...`
-                : `Генерация разделов... ${generateStatus.sections_done}/${generateStatus.total_sections}`}
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-brand-600 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${(generateStatus.sections_done / Math.max(generateStatus.total_sections, 1)) * 100}%` }}
-            />
-          </div>
+        <div className="card flex justify-center">
+          <SynthiaOrb
+            sections_done={generateStatus.sections_done}
+            total_sections={generateStatus.total_sections}
+            regenSection={regenSection}
+            sectionLabel={regenSection ? (SECTION_LABELS[regenSection] ?? regenSection) : undefined}
+          />
         </div>
       )}
 
       {/* GCP Check Result */}
       {checkResult && <GcpCheckPanel result={checkResult} onClose={() => setCheckResult(null)} />}
+
+      {/* Tab switcher */}
+      <div className="flex gap-1 border-b border-gray-200">
+        {([['content', 'Содержание', FileText], ['audit', 'Аудит', Clock]] as const).map(([key, label, Icon]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === key
+                ? 'border-brand-600 text-brand-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Content tab ── */}
+      {tab === 'content' && (<>
+
+      {/* Tags card */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2 text-sm">
+            <Tag className="w-4 h-4 text-gray-400" /> Теги
+          </h2>
+          {!isReadOnly && !editingTags && (
+            <button
+              onClick={() => { setDraftTags(protocol?.tags ?? []); setEditingTags(true) }}
+              className="text-xs text-brand-600 hover:text-brand-700 font-medium"
+            >
+              Изменить
+            </button>
+          )}
+        </div>
+        {editingTags ? (
+          <div className="space-y-2">
+            <TagInput
+              value={draftTags}
+              onChange={setDraftTags}
+              suggestions={allTags}
+              placeholder="Добавить тег…"
+            />
+            <div className="flex gap-2">
+              <button onClick={handleSaveTags} disabled={savingTags} className="btn-primary !py-1.5 text-xs">
+                {savingTags ? <Spinner size={12} /> : 'Сохранить'}
+              </button>
+              <button onClick={() => setEditingTags(false)} className="btn-secondary !py-1.5 text-xs">
+                Отмена
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {(protocol?.tags ?? []).length === 0 ? (
+              <span className="text-sm text-gray-400">Теги не добавлены</span>
+            ) : (
+              (protocol?.tags ?? []).map(tag => <TagBadge key={tag} tag={tag} />)
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Meta card */}
       <div className="card p-5">
@@ -342,18 +475,18 @@ export default function ProtocolPage() {
                     <p className="text-xs text-gray-400 mt-1 px-1 italic">{activeVersion.comment}</p>
                   )}
                   {activeVersion.compliance_score !== undefined && (
-                    <div className="mt-2 px-1">
-                      <div className="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>GCP score</span>
-                        <span className="font-medium">{Math.round(activeVersion.compliance_score * 100)}%</span>
+                      <div className="mt-2 px-1">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1">
+                          <span>GCP score</span>
+                          <span className="font-medium">{Math.round(activeVersion.compliance_score)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div
+                            className="bg-emerald-500 h-1.5 rounded-full"
+                            style={{ width: `${Math.min(activeVersion.compliance_score, 100)}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                        <div
-                          className="bg-emerald-500 h-1.5 rounded-full"
-                          style={{ width: `${activeVersion.compliance_score * 100}%` }}
-                        />
-                      </div>
-                    </div>
                   )}
                 </div>
               )}
@@ -413,6 +546,31 @@ export default function ProtocolPage() {
           )}
         </div>
       ) : null}
+
+      </>)}
+
+      {/* ── Audit tab ── */}
+      {tab === 'audit' && (
+        <ProtocolAuditPanel
+          logs={auditLogs}
+          loading={auditLoading}
+          fromDate={auditFrom}
+          toDate={auditTo}
+          onFromDate={setAuditFrom}
+          onToDate={setAuditTo}
+          onRefresh={loadAudit}
+          protocolTitle={protocol.title}
+        />
+      )}
+
+      {/* Draft viewer modal */}
+      {showDraft && activeVersion && (
+        <DraftModal
+          version={activeVersion}
+          protocolTitle={protocol.title}
+          onClose={() => setShowDraft(false)}
+        />
+      )}
     </div>
   )
 }
@@ -427,8 +585,8 @@ function MetaItem({ label, value }: { label: string; value: string }) {
 }
 
 function GcpCheckPanel({ result, onClose }: { result: CheckResponse; onClose: () => void }) {
-  const score = Math.round(result.compliance_score * 100)
-  const rfScore = Math.round((result.rf_compliance_score ?? 0) * 100)
+  const score = Math.round(result.compliance_score)
+  const rfScore = Math.round(result.rf_compliance_score ?? 0)
   const scoreColor = score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600'
   const barColor   = score >= 80 ? 'bg-emerald-500'  : score >= 60 ? 'bg-amber-500'   : 'bg-red-500'
 
@@ -502,5 +660,158 @@ function GcpCheckPanel({ result, onClose }: { result: CheckResponse; onClose: ()
         AI-Assisted. Requires qualified person review. Не является юридической или медицинской экспертизой.
       </p>
     </div>
+  )
+}
+
+// ── Per-protocol Audit Panel ─────────────────────────────────────────────────
+
+interface AuditPanelProps {
+  logs: AuditEntry[]
+  loading: boolean
+  fromDate: string
+  toDate: string
+  onFromDate: (v: string) => void
+  onToDate:   (v: string) => void
+  onRefresh:  () => void
+  protocolTitle: string
+}
+
+function ProtocolAuditPanel({
+  logs, loading, fromDate, toDate, onFromDate, onToDate, onRefresh, protocolTitle,
+}: AuditPanelProps) {
+  const printDate = new Date().toLocaleString('ru', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short',
+  })
+
+  return (
+    <>
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #proto-audit-print, #proto-audit-print * { visibility: visible !important; }
+          #proto-audit-print { position: absolute; left: 0; top: 0; width: 100%; }
+          .proto-audit-noprint { display: none !important; }
+          .proto-audit-phdr { display: block !important; }
+          @page { margin: 15mm; size: A4 landscape; }
+        }
+        .proto-audit-phdr { display: none; }
+      `}</style>
+
+      {/* Filter bar */}
+      <div className="card p-4 proto-audit-noprint">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="form-label text-xs mb-1">Дата от</label>
+            <input type="date" className="form-input text-sm" value={fromDate}
+              onChange={e => onFromDate(e.target.value)} max={toDate} />
+          </div>
+          <div>
+            <label className="form-label text-xs mb-1">Дата до</label>
+            <input type="date" className="form-input text-sm" value={toDate}
+              onChange={e => onToDate(e.target.value)} min={fromDate} />
+          </div>
+          <button onClick={onRefresh} className="btn-primary !py-2 text-sm flex items-center gap-1.5">
+            <RefreshCcw className="w-3.5 h-3.5" />
+            Применить
+          </button>
+          <button onClick={() => window.print()} className="btn-secondary !py-2 text-sm flex items-center gap-1.5 ml-auto">
+            <Download className="w-3.5 h-3.5" />
+            Печать / PDF
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          {loading ? 'Загрузка…' : `Событий: ${logs.length}`}
+        </p>
+      </div>
+
+      {/* Printable area */}
+      <div id="proto-audit-print">
+        {/* Print header */}
+        <div className="proto-audit-phdr mb-4">
+          <div className="flex justify-between">
+            <div>
+              <h1 className="text-base font-bold">Аудиторский след протокола</h1>
+              <p className="text-sm font-medium">{protocolTitle}</p>
+              <p className="text-xs text-gray-500">FOR RESEARCH USE ONLY — NOT FOR CLINICAL USE</p>
+            </div>
+            <div className="text-right text-xs text-gray-500">
+              <p className="font-medium">Дата печати: {printDate}</p>
+              {fromDate && <p>Период от: {fromDate}</p>}
+              {toDate && <p>Период до: {toDate}</p>}
+              <p>Всего событий: {logs.length}</p>
+            </div>
+          </div>
+          <hr className="border-gray-300 my-2" />
+          <p className="text-xs text-gray-400 italic">
+            Документ сформирован автоматически. Является записью аудиторского следа системы.
+          </p>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-16"><Spinner size={28} /></div>
+        ) : logs.length === 0 ? (
+          <div className="card p-12 text-center text-gray-400">
+            <Clock className="w-8 h-8 mx-auto mb-2" />
+            <p className="text-sm">Событий за выбранный период не найдено</p>
+          </div>
+        ) : (
+          <div className="card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Дата / Время</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Пользователь</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Действие</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Детали</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {logs.map((log, i) => {
+                    const actionCls = ACTION_COLORS[log.action] ?? 'bg-gray-50 text-gray-600 border-gray-200'
+                    const role = (log.metadata?.role as string) || ''
+                    const roleCls = { admin: 'bg-red-100 text-red-700', employee: 'bg-sky-100 text-sky-700', auditor: 'bg-gray-100 text-gray-600', system: 'bg-gray-100 text-gray-500' }[role] ?? ''
+                    return (
+                      <tr key={log.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                        <td className="px-4 py-3 text-xs text-gray-500 font-mono whitespace-nowrap">
+                          {new Date(log.created_at).toLocaleString('ru', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' })}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <User className="w-3 h-3 text-gray-400" />
+                            <span className="text-sm font-medium">{log.performed_by}</span>
+                            {role && <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${roleCls}`}>{role}</span>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border font-medium ${actionCls}`}>
+                            <Activity className="w-3 h-3" />
+                            {ACTION_LABELS[log.action] ?? log.action}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+                            {log.metadata?.version != null && <span><span className="text-gray-400">v:</span> {String(log.metadata.version)}</span>}
+                            {log.metadata?.model != null && <span><span className="text-gray-400">модель:</span> {String(log.metadata.model)}</span>}
+                            {log.metadata?.duration_ms != null && <span><span className="text-gray-400">время:</span> {String(log.metadata.duration_ms)}мс</span>}
+                            {log.metadata?.compliance_score != null && <span><span className="text-gray-400">GCP:</span> {String(log.metadata.compliance_score)}%</span>}
+                            {log.metadata?.section != null && <span><span className="text-gray-400">секция:</span> {String(log.metadata.section)}</span>}
+                            {log.metadata?.format != null && <span><span className="text-gray-400">формат:</span> {String(log.metadata.format)}</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="proto-audit-phdr px-4 py-3 border-t border-gray-200 text-xs text-gray-400 text-right">
+              AI Protocol Generator · Напечатано: {printDate}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   )
 }

@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
@@ -12,6 +12,21 @@ from app.schemas.protocol import (
 )
 
 router = APIRouter(prefix="/api/v1/protocols", tags=["protocols"])
+tags_router = APIRouter(prefix="/api/v1", tags=["tags"])
+
+
+@tags_router.get("/tags", response_model=list[str])
+async def list_all_tags(
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    """All unique tags across all protocols — for autocomplete."""
+    result = await db.execute(select(Protocol.tags))
+    all_tags: set[str] = set()
+    for (tags,) in result:
+        if isinstance(tags, list):
+            all_tags.update(t for t in tags if isinstance(t, str) and t.strip())
+    return sorted(all_tags)
 
 
 @router.post("", response_model=ProtocolResponse, status_code=status.HTTP_201_CREATED)
@@ -36,17 +51,34 @@ async def create_protocol(
 
 @router.get("", response_model=list[ProtocolListItem])
 async def list_protocols(
-    limit: int = 20,
+    limit: int = 50,
     offset: int = 0,
     phase: Optional[str] = None,
+    status: Optional[str] = Query(None, description="Filter by status (draft|generated|approved)"),
+    therapeutic_area: Optional[str] = Query(None, description="Filter by therapeutic area"),
+    search: Optional[str] = Query(None, description="Search by title or drug name (case-insensitive)"),
+    tag: Optional[str] = Query(None, description="Filter by tag"),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    q = select(Protocol).order_by(Protocol.updated_at.desc()).limit(limit).offset(offset)
+    q = select(Protocol).order_by(Protocol.updated_at.desc())
     if phase:
         q = q.where(Protocol.phase == phase)
+    if status:
+        q = q.where(Protocol.status == status)
+    if therapeutic_area:
+        q = q.where(Protocol.therapeutic_area.ilike(f"%{therapeutic_area}%"))
+    if search:
+        term = f"%{search}%"
+        q = q.where(
+            Protocol.title.ilike(term) | Protocol.drug_name.ilike(term)
+        )
     result = await db.execute(q)
-    return result.scalars().all()
+    protocols = result.scalars().all()
+    # Tag filter: Python-level (JSON array membership)
+    if tag:
+        protocols = [p for p in protocols if tag in (p.tags or [])]
+    return protocols[offset : offset + limit]
 
 
 @router.get("/{protocol_id}", response_model=ProtocolResponse)

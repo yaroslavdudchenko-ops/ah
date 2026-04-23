@@ -82,11 +82,21 @@ async def test_get_deleted_protocol_returns_404(client):
 
 @pytest.mark.asyncio
 async def test_create_invalid_phase(client):
-    """ALT-01.2: phase='IV' → 422 validation error."""
+    """ALT-01.2: phase='phase_2' (wrong format) → 422 validation error."""
+    payload = bcd100_payload()
+    payload["phase"] = "phase_2"
+    resp = await client.post("/api/v1/protocols", json=payload)
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_phase_iv_valid(client):
+    """ALT-01.2b: phase='IV' → 201 (Phase IV теперь поддерживается)."""
     payload = bcd100_payload()
     payload["phase"] = "IV"
     resp = await client.post("/api/v1/protocols", json=payload)
-    assert resp.status_code == 422
+    assert resp.status_code == 201
+    assert resp.json()["phase"] == "IV"
 
 
 @pytest.mark.asyncio

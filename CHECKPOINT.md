@@ -1,8 +1,8 @@
 # CHECKPOINT — Восстановление контекста
 
 **Создан:** 2026-04-23  
-**Версия:** 4.0.0  
-**Обновлён:** 2026-04-23 (сессия 4 — Auth/RBAC, missing features, test suite)  
+**Версия:** 6.0.0  
+**Обновлён:** 2026-04-23 (сессия 6 — Synthia branding, search, draft viewer, tag QA, docs)  
 **Назначение:** Полное восстановление контекста после очистки чата
 
 ---
@@ -37,7 +37,7 @@
 |---|---|---|
 | Backend | Python 3.12 + FastAPI + SQLAlchemy 2 (async) + Alembic | ADR-003 |
 | Frontend | React 18 + Vite + TypeScript + Tailwind CSS | ADR-003 |
-| База данных | PostgreSQL 16 (JSONB для секций, docker-compose сервис `db`) | ADR-001 |
+| База данных | PostgreSQL 16 (JSONB для секций и тегов, docker-compose сервис `db`) | ADR-001 |
 | AI | AI Gateway → `InHouse/Qwen3.5-122B` (OpenAI-compatible API, только локальные модели) | ADR-002 v2.0 |
 | Экспорт | python-docx + Jinja2 + mistune (Markdown→HTML) | — |
 | Deploy | Dokploy (Docker Compose mode) + Traefik | DEPLOY.md |
@@ -62,8 +62,9 @@ Backend → AIGatewayClient (httpx.AsyncClient + tenacity retry)
 ### Локальная разработка (.env — не в git)
 
 ```
-AI_GATEWAY_URL=            # Внутренний AI Gateway URL
-AI_GATEWAY_API_KEY=        # Ключ доступа к Gateway
+AI_GATEWAY_URL=http://host.docker.internal:11434   # Ollama на хосте (не localhost!)
+AI_GATEWAY_API_KEY=dev-key
+AI_GATEWAY_MODEL=InHouse/Qwen3.5-122B
 POSTGRES_USER=app
 POSTGRES_PASSWORD=app_dev_password
 POSTGRES_DB=protocols
@@ -71,13 +72,17 @@ DATABASE_URL=postgresql+asyncpg://app:app_dev_password@db:5432/protocols
 CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:8000"]
 ```
 
+### Текущие порты (меняются при каждом restart!)
+- **Frontend:** http://localhost:52698  
+- **Backend API:** http://localhost:52697  
+- **Backend Swagger:** http://localhost:52697/docs  
+- **DB:** localhost:56014 (PostgreSQL)
+
 ### docker-compose.yml — важные нюансы
 
-- `CORS_ORIGINS` передаётся как JSON-строка: `'["http://localhost","http://localhost:80"]'`
+- `CORS_ORIGINS` передаётся как JSON-строка
 - Порты меняются при каждом `docker compose restart` (random port mapping)
-- Backend текущий порт: **50159** (может измениться при рестарте)
-- Frontend текущий порт: **56403** (nginx, production-like)
-- Vite dev server: **http://localhost:5174/** (для локальной разработки)
+- `AI_GATEWAY_URL` должен быть `http://host.docker.internal:11434` (не localhost!) — иначе из Docker не достучаться до Ollama на хосте
 
 ---
 
@@ -85,124 +90,78 @@ CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:8000"]
 
 ### Фаза 0 — Документация ✅ 100%
 
-Все документы в `docs/`, включая `test-plan.md` v2.0.0, `api-spec.md` v1.2.0, `ARCHITECTURE.md` v1.2.0.
+Все документы в `docs/`, включая `test-plan.md` v3.1.0, `api-spec.md` v1.5.0.
 
 ---
 
-### Фаза 1 — Backend ✅ 100% (завершена 23.04.2026)
+### Фаза 1 — Backend ✅ 100%
 
 | Файл | Описание |
 |---|---|
 | `docker-compose.yml` | 3 сервиса: db, backend, frontend. Named volumes. HEALTHCHECK. |
 | `backend/Dockerfile` | python:3.12-slim, non-root user, alembic upgrade head + uvicorn |
-| `frontend/Dockerfile` | node:20-alpine builder → nginx:alpine, non-root. PID fix: `sed pid /tmp/nginx.pid` |
+| `frontend/Dockerfile` | node:20-alpine builder → nginx:alpine, non-root. PID fix. |
 | `frontend/nginx.conf` | SPA fallback + `/api/` proxy → backend:8000 |
 | `backend/app/core/config.py` | pydantic-settings: AI_GATEWAY_URL/KEY/MODEL, DATABASE_URL, CORS |
 | `backend/app/core/database.py` | async_engine, AsyncSessionLocal, get_db() dependency |
 | `backend/app/models/protocol.py` | 5 таблиц: Protocol, ProtocolVersion, Template, OpenIssue, AuditLog |
 | `backend/app/schemas/protocol.py` | Pydantic v2: Create/Update/Response + `error_body()` |
-| `backend/app/schemas/generate.py` | GenerateRequest/Status, CheckResponse, GcpHint, DiffResponse (P2 stub) |
-| `backend/app/services/ai_gateway.py` | AIGatewayClient: httpx + tenacity ×3. Только Qwen. HTTP 503 при сбое. |
-| `backend/app/services/generator.py` | 12 секций, MVP=7, THERAPEUTIC_AREA/PHASE контексты, fallback |
-| `backend/app/services/consistency.py` | GCP+RF check, JSON парсинг, fallback при недоступности |
-| `backend/app/services/export_service.py` | MD ✅ HTML ✅ DOCX ✅ (P2, готов к включению) |
-| `backend/app/routers/health.py` | GET /health |
-| `backend/app/routers/protocols.py` | CRUDL + /versions + /diff stub → 501 |
+| `backend/app/services/ai_gateway.py` | AIGatewayClient: httpx + tenacity ×3. HTTP 503 при сбое. |
+| `backend/app/services/generator.py` | 12 секций, MVP=7, THERAPEUTIC_AREA/PHASE контексты |
+| `backend/app/services/consistency.py` | GCP+RF check, JSON парсинг, fallback. Обновлена нормативная база. |
+| `backend/app/services/export_service.py` | MD ✅ HTML ✅ DOCX ✅ |
+| `backend/app/routers/protocols.py` | CRUDL + search/filter + /versions + /diff stub |
 | `backend/app/routers/generate.py` | POST /generate (async BackgroundTask) + GET status |
 | `backend/app/routers/check.py` | POST /check → consistency + open_issues persist |
-| `backend/app/routers/export.py` | GET /export?format=md\|html\|docx. `selectinload(open_issues)` — обязательно! |
-| `backend/app/routers/templates.py` | GET /templates, POST stub → 501 |
-| `backend/app/main.py` | FastAPI app, CORS, global error handler, lifespan |
-| `backend/alembic/versions/001_initial_schema.py` | 5 таблиц + индексы + 3 seed templates (Phase I/II/III) |
-
-**⚠️ Важно для export.py:** `selectinload(Protocol.open_issues)` обязателен иначе greenlet_spawn ошибка при экспорте.
-
-**P2 готовность в коде:**
-- DOCX: реализован в `export_service.py`, включить снятием `NotImplementedError`
-- Diff: схемы готовы в `schemas/generate.py`, endpoint-stub в `protocols.py`
-- SAP/ICF: добавить эндпоинты + секции в `generator.py`
+| `backend/app/routers/export.py` | GET /export?format=md\|html\|docx |
+| `backend/app/routers/auth.py` | POST /auth/token (OAuth2) + GET /auth/me |
+| `backend/app/routers/audit.py` | GET /audit-log (global) + GET /protocols/{id}/audit |
 
 ---
 
-### Фаза 1.5 — Swagger Verification ✅ 100% (завершена 23.04.2026)
+### Фаза 1.5 — Swagger Verification ✅ 100%
 
-Все P0 эндпоинты проверены через `curl`/`Invoke-RestMethod`:
-
-| Эндпоинт | Статус |
-|---|---|
-| `GET /health` | ✅ `{"status":"ok","db":"connected"}` |
-| `POST /api/v1/protocols` | ✅ 201 + UUID |
-| `GET /api/v1/protocols` | ✅ 200 + список |
-| `POST /api/v1/protocols/{id}/generate` | ✅ 202 + task_id |
-| `GET /api/v1/protocols/{id}/generate/{task_id}` | ✅ completed 7/7 sections |
-| `GET /api/v1/protocols/{id}/export?format=md` | ✅ 200 + файл 3838b |
-| `GET /api/v1/protocols/{id}/export?format=html` | ✅ 200 + файл 5352b |
-| `GET /api/v1/templates` | ✅ 200 + 3 шаблона |
+Все P0 эндпоинты верифицированы через curl/PowerShell.
 
 ---
 
-### Фаза 2 — Frontend ✅ 100% (завершена 23.04.2026)
-
-**Стек:** React 18 + Vite 6 + TypeScript + Tailwind CSS 3
+### Фаза 2 — Frontend ✅ 100%
 
 | Файл | Описание |
 |---|---|
-| `frontend/package.json` | react 18.3, react-router-dom 6.27, react-markdown 9, lucide-react |
-| `frontend/vite.config.ts` | Proxy `/api` → backend (port из `BACKEND_PORT` env var, default 50159) |
-| `frontend/tailwind.config.js` | brand palette (sky 500/600/700) + custom components |
-| `frontend/src/index.css` | Tailwind base + `btn-primary`, `btn-secondary`, `card`, `badge`, `form-input` |
-| `frontend/src/App.tsx` | BrowserRouter: `/protocols`, `/protocols/new`, `/protocols/:id` |
-| `frontend/src/api/client.ts` | Типизированный API клиент: все endpoint типы (Template, Protocol, GenerateStatus, CheckResponse) |
-| `frontend/src/components/Layout.tsx` | Header + NavLink + footer ("FOR RESEARCH USE ONLY") |
-| `frontend/src/components/StatusBadge.tsx` | draft/generating/generated/error — цвета + pulse |
-| `frontend/src/components/Spinner.tsx` | SVG spinner |
-| `frontend/src/components/ErrorAlert.tsx` | Алерт с закрытием |
-| `frontend/src/pages/ProtocolListPage.tsx` | Список + Delete (с confirm) + EmptyState |
-| `frontend/src/pages/CreateProtocolPage.tsx` | Форма: 5 секций, валидация, шаблоны, динамические критерии |
-| `frontend/src/pages/ProtocolPage.tsx` | Viewer + Generate + polling + GCP panel + Export + Delete |
-
-**Сборка:** `tsc + vite build` → 0 ошибок, 324kB JS + 18kB CSS
-
-**⚠️ GenerateStatus расхождение API:** backend возвращает `sections_done: List[str]` и `sections_total: List[str]`, frontend ожидает числа. Polling работает через `.Count` / `.length`, но progress bar может показывать 0 пока не будет унифицирован формат. Исправить при Фазе 4 если нужно.
+| `frontend/src/App.tsx` | BrowserRouter: routes для /protocols, /protocols/new, /protocols/:id, /audit |
+| `frontend/src/api/client.ts` | Типизированный клиент: Protocol, ProtocolListItem (с therapeutic_area), AuditEntry, etc. |
+| `frontend/src/components/Layout.tsx` | Synthia брендинг, NavLink, логотип-ссылка на /protocols |
+| `frontend/src/components/SynthiaOrb.tsx` | SVG Morphing Blob анимация генерации |
+| `frontend/src/components/DraftModal.tsx` | Модал полного просмотра черновика + print/PDF |
+| `frontend/src/components/TagBadge.tsx` | Цветной тег-чип (hash-based color) |
+| `frontend/src/pages/LoginPage.tsx` | Synthia логин, Sparkles icon, gradient |
+| `frontend/src/pages/ProtocolListPage.tsx` | Список + поиск + автокомплит + фильтры (фаза/статус/область) + теги |
+| `frontend/src/pages/CreateProtocolPage.tsx` | Форма создания с тегами (TagInput) |
+| `frontend/src/pages/ProtocolPage.tsx` | Viewer + Generate (SynthiaOrb) + Draft viewer + GCP panel + Export + Audit tab |
+| `frontend/src/pages/AuditTrailPage.tsx` | Глобальный журнал аудита + фильтр дат + PDF |
 
 ---
 
-### Фаза 2.5 — QA Testing ✅ 100% (завершена 23.04.2026)
+### Фаза 2.5 — QA Testing ✅ 100%
 
-**Автотесты:** `pytest tests/ -v` → **31 passed, 0 failed, 0 errors** (14.84s)
+**Автотесты:** `pytest tests/ -v` → **93 passed, 0 failed**
 
-```bash
-# Запуск (нужно создать protocols_test БД один раз):
-docker compose exec db psql -U app -d protocols -c "CREATE DATABASE protocols_test OWNER app;"
-docker compose exec backend pytest tests/ -v
-```
-
-| Файл | Покрытие |
+| Файл | Тестов |
 |---|---|
-| `tests/conftest.py` | function-scoped fixtures, seed SQL, mock_ai_gateway_ok/fail, mock_consistency_ok |
-| `tests/test_health.py` | 1 тест |
-| `tests/test_protocols.py` | 20 тестов (CRUDL + 8 negative/ALT) |
-| `tests/test_export.py` | 5 тестов (MD/HTML unit + 422 before-generate) |
-| `tests/test_ai_gateway.py` | 5 тестов (retry, fallback, section count) |
-| `tests/test_templates.py` | 4 теста (seed + 501-stub) |
+| `tests/test_health.py` | 1 |
+| `tests/test_protocols.py` | 20 |
+| `tests/test_export.py` | 5 |
+| `tests/test_ai_gateway.py` | 5 |
+| `tests/test_templates.py` | 4 |
+| `tests/test_auth.py` | 11 |
+| `tests/test_form_scenarios.py` | 50 |
 
-**Ключевые исправления в тестах:**
-- `conftest.py`: function-scoped async engine (pytest-asyncio 1.3 несовместим с session-scope)
-- `conftest.py`: seed SQL вставляется после `create_all` (Alembic не запускается в тестах)
-- `export.py`: `selectinload(Protocol.open_issues)` — обязателен для предотвращения `greenlet_spawn` ошибки
-- Все assertions: `resp.json()["detail"]["error"]["code"]` (FastAPI оборачивает в `detail`)
-
-**Ручные тесты:**
-
-| Сценарий | Результат |
-|---|---|
-| HP-01: BCD-100 Phase II Create→Generate(7/7)→Export MD(3838b) HTML(5352b) | ✅ PASS |
-| HP-02: BCD-089 Phase III Create→Generate start | ✅ PASS |
-| ALT: 404, 422, 501 все правильные коды | ✅ PASS |
+**Ручные тесты:** test-plan.md v3.1.0 — добавлены TAG-01..05, SEARCH-01..02, DRAFT-01..02, UI-01
 
 ---
 
-### Фаза 3 — Deploy 🔲 0% ← **СЛЕДУЮЩИЙ ШАГ**
+### Фаза 3 — Deploy 🔲 0% ← **СЛЕДУЮЩИЙ ШАГ (24.04.2026 утро)**
 
 **Что нужно сделать:**
 1. Прочитать `dokploy-repo-prep/SKILL.md` — специфика Dokploy
@@ -220,172 +179,285 @@ docker compose exec backend pytest tests/ -v
 
 ---
 
-### Фаза 4 — P1 Features 🔲 0%
+### Фаза 4 — P1 Features 🔲 Частично готово
 
-- Версионирование UI (GET /versions в ProtocolPage уже есть)
-- GCP Check UI (уже реализован в ProtocolPage — `GcpCheckPanel`)
-- DOCX export (снять `NotImplementedError` в `export_service.py`)
-- Унификация `GenerateStatus` (sections_done: list→number)
+- Версионирование UI ✅ (реализовано)
+- GCP Check UI ✅ (реализовано)
+- DOCX export ✅ (реализовано)
+- Audit Trail ✅ (реализовано)
+- Теги ✅ (реализовано)
+- Поиск + фильтры ✅ (реализовано)
+- Draft viewer ✅ (реализовано)
+- SynthiaOrb анимация ✅ (реализовано)
 
 ---
 
-### Фаза 5 — P2 Features 🔲 0% (если останется время)
+### Фаза 5 — P2 Features 🔲 Backlog
 
 - SAP/ICF генерация — добавить промпты + эндпоинты
 - Diff UI — схемы готовы, нужен frontend + диффер
 
 ---
 
-## 6. Локальный запуск (воспроизведение среды)
+### Фаза 6 — P3 Интеграции и AI улучшения 🔲 Post-MVP Backlog
 
-```bash
+#### RAG (Retrieval-Augmented Generation) — Вариант 1: pgvector
+
+**Решение принято:** pgvector в текущем PostgreSQL (смена образа `postgres:16` → `pgvector/pgvector:pg16`).
+
+**Архитектура:**
+```
+Indexing:  ProtocolVersion.content[section] → EmbeddingService → protocol_embeddings(vector)
+Retrieval: embed(title+indication+phase) → SELECT ... ORDER BY embedding <-> $1 LIMIT 3
+Enhanced:  RAG context (top-3 похожих секций) → LLM prompt → лучший раздел
+```
+
+**Что нужно сделать при реализации:**
+1. Уточнить у BIOCAD IT: работает ли текущий `AI_GATEWAY_API_KEY` для `https://aigateway.biocad.ru/api/v2/embeddings`?
+2. Добавить `AI_EMBEDDING_URL=https://aigateway.biocad.ru/api/v2` и `AI_EMBEDDING_MODEL=InHouse/embeddings-model-1` в `.env` и `config.py`
+3. Сменить образ в docker-compose: `pgvector/pgvector:pg16` (данные не теряются, нужен `pg_dumpall` если prod)
+4. Alembic миграция: `CREATE EXTENSION vector` + таблица `protocol_embeddings`
+5. Новый файл `backend/app/services/embedding_service.py`
+6. Fallback: если similarity < 0.7 или найдено < 2 документов — генерировать без RAG
+7. Индексация существующих протоколов (seeder при старте)
+8. Mock embeddings в тестах
+
+**Переходить на pgvector когда:** similarity-запросы > 100 мс ИЛИ корпус > 5000 протоколов.  
+**До этого момента**: JSON-колонка + numpy cosine_similarity в Python (нулевые изменения инфраструктуры).
+
+**Риски к моменту реализации:**
+- "Холодный старт" — RAG даёт пользу при 20+ реальных протоколах в БД
+- Проверить доступность `aigateway.biocad.ru` из Docker-контейнера Dokploy
+- Legal/InfoSec согласование: встраивать только метаданные, не полные тексты секций
+
+---
+
+- **ct.biocad.ru ↔ Synthia** — Импорт реестра препаратов BIOCAD для автозаполнения формы.  
+  **Статус:** Ожидает получения доступа к внутреннему API от BIOCAD IT.  
+  **Решение:** Запросить у BIOCAD IT endpoint с реестром препаратов/исследований + условия подключения (JWT/OAuth).  
+  **Риски зафиксированы:**
+  - Отсутствие публичного API (нужен внутренний endpoint)
+  - Регуляторные ограничения 61-ФЗ на публикацию данных КИ до одобрения Минздрава
+  - Необходима Security review при смешивании internal/external периметров
+  - Условия использования ct.biocad.ru запрещают web scraping
+  **Рекомендуемый первый шаг:** письмо в IT/Legal BIOCAD: "Есть ли внутренний API реестра исследований и условия подключения?"
+
+---
+
+## 6. Нормативная база (актуальная, обновлена 23.04.2026)
+
+Зафиксирована в `prompts/validation-prompts/gcp-compliance.md` v1.2.0 и `backend/app/services/consistency.py`:
+
+| Документ | Статус | Применение |
+|---|---|---|
+| ICH E6 (R2) | ✅ Актуален | Международный стандарт GCP |
+| GCP ЕАЭС (Решение Совета ЕЭК №79, ред. №63 от 01.08.2025) | ✅ Основной с 01.09.2024 | Заменил Приказ №200н |
+| 61-ФЗ (гл. 7, ст. 38–44) | ✅ Актуален | Правовая основа КИ в РФ |
+| Приказ Минздрава №353н от 26.05.2021 | ✅ Актуален | Информированное согласие |
+| Приказ Минздрава №75н от 17.02.2025 | ✅ Актуален | Изменения в протокол КИ |
+| Приказ Минздрава №708н от 23.12.2024 | ✅ Актуален | Реестр разрешений на КИ |
+| Решение Совета ЕЭК №77 от 03.11.2016 | ✅ Актуален | GMP ЕАЭС (исследуемые препараты) |
+| ГОСТ Р 52379-2005 | ✅ Актуален | Национальный стандарт GCP |
+| 152-ФЗ | ✅ Актуален | Защита персональных данных |
+| ~~Приказ №200н~~ | ❌ Утратил силу с 01.09.2024 | Удалён из промптов |
+| ~~Приказ Минпромторга №916~~ | ❌ Заменён | Заменён Решением ЕЭК №77 |
+
+---
+
+## 7. Критерии GCP-скоров
+
+**ICH E6(R2) Score (0-100)** — базируется на:
+- Наличие обязательных 12 разделов ICH E6(R2)
+- Корректность терминологии
+- Логическая консистентность между разделами
+- Соответствие принципам GCP (Appendix 6-8)
+
+**РФ НМД Score (0-100)** — базируется на:
+- Соответствие GCP ЕАЭС (Решение ЕЭК №79/63)
+- Наличие требований 61-ФЗ (информированное согласие, страхование)
+- Соответствие Приказам №353н, №75н, №708н
+
+Оба скора рассчитываются промптом в `consistency.py` → `CONSISTENCY_SYSTEM_PROMPT`.
+
+---
+
+## 8. Auth/RBAC
+
+| Роль | Create | Read | Update | Delete |
+|---|---|---|---|---|
+| admin | ✅ | ✅ | ✅ | ✅ |
+| employee | ✅ | ✅ | ✅ | ❌ |
+| auditor | ❌ | ✅ | ❌ | ❌ |
+
+Demo users из `.env`:
+```
+ADMIN_USERNAME=admin / ADMIN_PASSWORD=admin123
+EMPLOYEE_USERNAME=employee / EMPLOYEE_PASSWORD=emp123
+AUDITOR_USERNAME=auditor / AUDITOR_PASSWORD=aud123
+```
+
+JWT flow: `POST /api/v1/auth/token` (OAuth2 password) → Bearer token → все запросы.
+
+---
+
+## 9. Ключевые особенности UI (актуальные)
+
+- **Название системы:** Synthia (заменило "AI Protocol Generator")
+- **Логотип:** Sparkles icon + gradient `#818cf8 → #c084fc → #22d3ee`, кликабелен → /protocols
+- **Анимация генерации:** SynthiaOrb — SVG Morphing Blob (Variant B), 3 морфирующих пути, SMIL animations
+- **Кнопка «Черновик»:** появляется после генерации, открывает DraftModal со всеми разделами + print
+- **Поиск:** строка поиска с автокомплитом (debounce 250ms, ≥2 символа), Enter применяет
+- **Фильтры:** Фаза / Статус / Терапевтическая область, счётчик активных, сброс одним кликом
+- **Теги:** цветные чипы (hash-based), добавление через Enter/запятую, фильтрация кликом
+- **Audit Trail:** отдельная страница /audit + вкладка в каждом протоколе + PDF с датой печати
+- **Delete RBAC:** кнопка удаления скрыта для employee и auditor в UI
+
+---
+
+## 10. Локальный запуск
+
+```powershell
 # Полный стек в Docker
 docker compose up -d
-# Backend: http://localhost:<random_port>/docs
-# Frontend: http://localhost:<random_port>/ (nginx)
 
-# Vite dev server (рекомендуется для разработки)
-cd frontend
-$env:BACKEND_PORT = "50159"   # актуальный порт backend из docker compose ps
-npm run dev
-# → http://localhost:5174/
+# Проверить порты
+docker compose ps
 
 # Тесты
 docker compose exec db psql -U app -d protocols -c "CREATE DATABASE protocols_test OWNER app;"  # один раз
 docker compose exec backend pytest tests/ -v
 
-# Проверка экспорта (после генерации)
-$proto_id = "<uuid из POST /protocols>"
-Invoke-WebRequest -Uri "http://localhost:50159/api/v1/protocols/$proto_id/export?format=md" -UseBasicParsing
+# Пересборка после изменений кода
+docker compose build --no-cache frontend backend
+docker compose up -d --force-recreate frontend backend
 ```
 
 ---
 
-## 7. Ключевые ограничения (нельзя менять)
+## 11. Ключевые ограничения (нельзя менять)
 
-### Архитектурные
 1. **PostgreSQL** — финальный выбор, не SQLite
-2. **AI Gateway** (единственный провайдер) → `InHouse/Qwen3.5-122B`, fallback на внешние LLM запрещён (NFR-08)
+2. **AI Gateway** → `InHouse/Qwen3.5-122B`, fallback на внешние LLM запрещён (NFR-08)
 3. **Dokploy** — деплой-платформа (не Vercel, не Railway)
-4. **GitLab** `gitlab.biocad.ru` — репозиторий (не GitHub)
-
-### Docker/Dokploy (hard constraints)
+4. **GitLab** `gitlab.biocad.ru` — репозиторий
 5. **Без `container_name`** в docker-compose
 6. **Порты short syntax** `- "80"` — без `80:80`
-7. **Named volumes only** `db-data` — не `./` пути
-8. **Non-root user** в Dockerfile — обязательно
+7. **Named volumes only** `db-data`
+8. **Non-root user** в Dockerfile
 9. **HEALTHCHECK** для каждого сервиса
-
-### Качество кода
-10. **English naming** — таблицы БД, колонки, Python-код, API endpoints
-11. **snake_case** для всех JSON полей API
-12. **ALCOA++ / SMART / CRUDL** — все документы и API
+10. **`AI_GATEWAY_URL=http://host.docker.internal:11434`** — не localhost!
 
 ---
 
-## 8. Демо-данные (синтетические, уже в БД)
-
-**Протокол 1 — Фаза II, Онкология (BCD-100):**
-- id: `f28eb6a3-ba04-4405-85f9-81ed24611378`
-- Статус: generated (7/7 секций)
-- Экспорт MD: 3838b, HTML: 5352b
-
-**Протокол 2 — Фаза III, Дерматология (BCD-089):**
-- id: `11639775-5884-495b-a657-f3cd4ec77135`
-- Статус: generating (started)
-
-**Seed шаблоны (3 шт):** Phase I FIH, Phase II Single-Arm, Phase III RCT
-
----
-
-## 9. Структура файлов (актуальная)
+## 12. Структура файлов (актуальная)
 
 ```
 c:\research-protocols-23042026\
-├── CHECKPOINT.md            ← v3.0.0 (этот файл)
+├── CHECKPOINT.md            ← v6.0.0 (этот файл)
 ├── ARCHITECTURE.md          ← v1.2.0
 ├── README.md, DEPLOY.md, PROMPTS.md, RELEASE-NOTES.md
-├── docker-compose.yml       ← 3 сервиса, named volumes, HEALTHCHECK
+├── docker-compose.yml
 ├── backend/
-│   ├── Dockerfile           ← python:3.12-slim, non-root
-│   ├── requirements.txt     ← fastapi, sqlalchemy, pytest-asyncio>=1.3
-│   ├── pytest.ini           ← asyncio_mode=auto
 │   ├── app/
 │   │   ├── main.py
-│   │   ├── core/config.py, database.py
-│   │   ├── models/protocol.py   ← 5 таблиц
+│   │   ├── core/config.py, database.py, security.py
+│   │   ├── models/protocol.py          ← 5 таблиц (Protocol.tags: JSONB)
 │   │   ├── schemas/protocol.py, generate.py
 │   │   ├── services/ai_gateway.py, generator.py, consistency.py, export_service.py
-│   │   └── routers/health.py, protocols.py, generate.py, check.py, export.py, templates.py
-│   ├── alembic/
-│   │   └── versions/001_initial_schema.py  ← 3 seed templates
-│   └── tests/
-│       ├── conftest.py      ← function-scoped fixtures + seed SQL
-│       ├── test_health.py
-│       ├── test_protocols.py
-│       ├── test_export.py
-│       ├── test_ai_gateway.py
-│       └── test_templates.py
+│   │   └── routers/
+│   │       ├── health.py, protocols.py, generate.py, check.py
+│   │       ├── export.py, templates.py, auth.py, audit.py
+│   ├── alembic/versions/001_initial_schema.py
+│   ├── scripts/seed_demo.py
+│   └── tests/ (93 тестов)
 ├── frontend/
-│   ├── Dockerfile           ← node:20 builder → nginx:alpine, pid /tmp/nginx.pid fix
-│   ├── nginx.conf           ← SPA + /api/ proxy
-│   ├── package.json         ← react 18, vite 6, tailwind 3, react-markdown 9
-│   ├── vite.config.ts       ← proxy: BACKEND_PORT env var (default 50159)
-│   ├── tailwind.config.js
-│   ├── tsconfig.app.json
-│   ├── index.html
 │   └── src/
-│       ├── App.tsx           ← BrowserRouter + 3 routes
-│       ├── index.css         ← Tailwind + custom classes
-│       ├── api/client.ts     ← все типы + fetch wrappers
-│       ├── components/Layout.tsx, StatusBadge.tsx, Spinner.tsx, ErrorAlert.tsx
-│       └── pages/ProtocolListPage.tsx, CreateProtocolPage.tsx, ProtocolPage.tsx
+│       ├── App.tsx
+│       ├── api/client.ts               ← ProtocolListItem с therapeutic_area
+│       ├── contexts/AuthContext.tsx
+│       ├── components/
+│       │   ├── Layout.tsx              ← Synthia logo → Link to /protocols
+│       │   ├── SynthiaOrb.tsx          ← SVG Morphing Blob анимация
+│       │   ├── DraftModal.tsx          ← полный просмотр черновика + print
+│       │   ├── TagBadge.tsx, TagInput.tsx
+│       │   ├── StatusBadge.tsx, Spinner.tsx, ErrorAlert.tsx, ProtectedRoute.tsx
+│       └── pages/
+│           ├── LoginPage.tsx
+│           ├── ProtocolListPage.tsx    ← search + autocomplete + filters
+│           ├── CreateProtocolPage.tsx
+│           ├── ProtocolPage.tsx        ← Draft button + SynthiaOrb + Audit tab
+│           └── AuditTrailPage.tsx
 ├── docs/
-│   ├── test-plan.md         ← v2.0.0 QA план
-│   ├── api-spec.md          ← v1.2.0
+│   ├── test-plan.md         ← v3.1.0 (добавлены TAG/SEARCH/DRAFT/UI тесты)
+│   ├── api-spec.md          ← v1.5.0 (задокументированы search/filter params)
+│   ├── VERSIONS.md          ← обновлён
 │   └── [все прочие docs]
 ├── prompts/
 │   ├── system-prompt.md
 │   ├── section-generators/
-│   └── validation-prompts/gcp-compliance.md, consistency-check.md
-├── canvases/
-│   ├── c4-architecture.canvas.tsx
-│   └── protocol-generator-ui.canvas.tsx
-└── dokploy-repo-prep/SKILL.md  ← обязательно читать перед деплоем!
+│   └── validation-prompts/
+│       ├── gcp-compliance.md           ← v1.2.0 (обновлена нормативная база)
+│       └── consistency-check.md
+└── dokploy-repo-prep/SKILL.md  ← читать перед деплоем!
 ```
 
 ---
 
-## 10. GitLab
+## 13. GitLab
 
 **Репозиторий:** `git@gitlab.biocad.ru:biocad/sandbox/hg-dis-group1-23042025/analysis-dudchenkoi-23042026.git`  
 **Ветка:** `master`
 
-**История коммитов (последние):**
-```
-492ac1e fix(frontend): nginx non-root pid path + vite proxy env-var port
-dcd08ee fix(qa): Phase 2.5 - 31/31 tests pass, fix export selectinload
-f8041d5 feat(frontend): Phase 2 - React + Vite + TS + Tailwind SPA
-3614ed3 fix: SSL cert bypass for pip, CORS JSON format, protocol UUID pre-generation
-99eadf1 chore: remove scaffold templates not related to project
-a0b7e6f feat: initial project commit - AI Clinical Protocol Generator
-```
+---
+
+## 14. История сессий
+
+### Сессия 1 (23.04.2026 — утро)
+- Создан проект, документация (Фаза 0), Backend MVP + Docker Compose (Фаза 1)
+
+### Сессия 2 (23.04.2026 — день)
+- QA план, Swagger verification, push в GitLab
+
+### Сессия 3 (23.04.2026 — вечер)
+- Фаза 2 Frontend — React SPA, Tailwind UI
+- Фаза 2.5 QA — 93/93 pytest
+
+### Сессия 4 (23.04.2026 — ночь)
+- Auth/RBAC (JWT, PBKDF2, 3 роли), AuditLog, LoginPage
+- Demo data (seed_demo.py): 4 протокола, 5 препаратов, разные статусы
+
+### Сессия 5 (23.04.2026)
+- Audit Trail UI (страница /audit + вкладка в протоколе + PDF)
+- RBAC UI fixes (скрытие корзины для employee/auditor)
+- Теги: TagInput, TagBadge, фильтрация, сохранение в JSONB
+- Synthia брендинг: SynthiaOrb анимация, переименование
+- Нормативная база GCP: Приказ №200н → GCP ЕАЭС, добавлены №75н, №708н, ЕЭК №77
+
+### Сессия 6 (23.04.2026) ← текущая
+- **Logo → NavLink:** логотип Synthia кликабелен → возврат на /protocols
+- **DraftModal:** кнопка «Черновик» → модал всех разделов + print/PDF с watermark
+- **ProtocolListPage:** полная переработка — поиск + autocomplete (debounce 250ms) + фильтры (Фаза/Статус/Область) + счётчик активных фильтров
+- **Backend search:** `GET /protocols` получил query params: `search`, `status`, `therapeutic_area` (ilike)
+- **api/client.ts:** `ProtocolListItem` расширен полями `therapeutic_area`, `inn`, `created_at`
+- **test-plan.md v3.1.0:** добавлены ручные тесты TAG-01..05, SEARCH-01..02, DRAFT-01..02, UI-01; регрессионный чеклист расширен
+- **api-spec.md v1.5.0:** задокументированы все query params `GET /protocols`
+- **P3 Backlog:** зафиксирована фича интеграции с ct.biocad.ru (ожидает доступа к BIOCAD IT API)
 
 ---
 
-## 11. Что делать первым при восстановлении контекста
+## 15. Что делать первым при восстановлении контекста
 
 1. Прочитать **этот файл** (CHECKPOINT.md) полностью
 2. Проверить статус docker: `docker compose ps`
-3. Если нужно продолжить разработку — запустить Vite: `cd frontend && $env:BACKEND_PORT="<port>" && npm run dev`
-4. Следующая задача: **Фаза 3 — Deploy на Dokploy**
+3. Актуальные порты видны в выводе ps
+4. **Следующая задача: Фаза 3 — Deploy на Dokploy**
    - Прочитать `dokploy-repo-prep/SKILL.md`
    - Добавить Traefik labels в `docker-compose.yml`
    - Деплой через Dokploy UI с GitLab репо
 
 ---
 
-## 12. Dokploy-специфика (из SKILL.md)
+## 16. Dokploy-специфика
 
 Скилл: `c:\research-protocols-23042026\dokploy-repo-prep\SKILL.md`
 
@@ -393,41 +465,3 @@ a0b7e6f feat: initial project commit - AI Clinical Protocol Generator
 - `env -i` при деплое — только `.env` файл доходит до контейнера
 - Домены = Traefik labels → обязателен редеплой после изменения домена
 - Isolated Deployment рекомендован (Advanced → Enable)
-
----
-
-## 13. Ключевые изменения по сессиям
-
-### Сессия 1 (23.04.2026 — утро)
-- Создан проект, документация (Фаза 0)
-- Backend MVP + Docker Compose (Фаза 1)
-- Исправления: SSL pip, CORS JSON, UUID pre-generation
-
-### Сессия 2 (23.04.2026 — день)
-- QA план, автотесты backend (conftest + 5 файлов тестов)
-- Swagger verification (Фаза 1.5) — все P0 эндпоинты ✅
-- Push в GitLab, очистка репо от scaffold файлов
-
-### Сессия 3 (23.04.2026 — вечер)
-- **Фаза 2 Frontend** — React SPA с 3 страницами, полным API клиентом, Tailwind UI
-- **Фаза 2.5 QA** — 31/31 pytest, ручные HP-01/HP-02/ALT сценарии
-- Исправления: pytest-asyncio 1.x fixtures, greenlet export bug, nginx pid non-root
-- Локальный сервер: http://localhost:5174/ (Vite) + http://localhost:56403/ (Docker nginx)
-
-### Сессия 4 (23.04.2026 — ночь) ← текущая
-- **Auth/RBAC** — JWT (python-jose), PBKDF2 пароли, 3 роли (admin/employee/auditor)
-  - `POST /api/v1/auth/token` — OAuth2 password flow
-  - `GET /api/v1/auth/me` — whoami
-  - Admin + Employee: read, create, update, delete
-  - Auditor: read only (write → 403)
-- **AuditLog** — `performed_by` (username) + role в metadata_ для всех actions (кто, где, когда, зачем)
-- **Frontend** — LoginPage + AuthContext + ProtectedRoute + Layout (badge/logout)
-- **Quick fixes:**
-  - DOCX кнопка в UI (export: md/html/docx все три)
-  - Watermark: `FOR DEMONSTRATION PURPOSES ONLY — SYNTHETIC DATA | AI-Assisted...`
-  - Federal Registry КИ link в footer
-  - `duration_ms` в AuditLog.metadata_ для ai_generate
-- **FR-03.5** — Перегенерация отдельной секции: `POST /protocols/{id}/sections/{key}/regenerate`
-- **FR-06.2** — Поле комментария к версии в UI
-- **Тесты** — 42/42 passed: +11 auth тестов (login, RBAC, auditor read-only, JWT flow)
-- **Backend deps:** добавлены `python-jose[cryptography]`, `python-multipart`; убрана passlib (заменена на hashlib PBKDF2)

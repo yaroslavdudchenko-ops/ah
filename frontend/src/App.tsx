@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage'
 import ProtocolListPage from './pages/ProtocolListPage'
 import CreateProtocolPage from './pages/CreateProtocolPage'
 import ProtocolPage from './pages/ProtocolPage'
+import AuditTrailPage from './pages/AuditTrailPage'
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/protocols" element={<ProtocolListPage />} />
             <Route path="/protocols/new" element={<CreateProtocolPage />} />
             <Route path="/protocols/:id" element={<ProtocolPage />} />
+            <Route path="/audit" element={<AuditTrailPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

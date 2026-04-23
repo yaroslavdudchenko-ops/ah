@@ -4,12 +4,13 @@ import { ChevronLeft, Plus, Trash2, Info } from 'lucide-react'
 import { api, type Template, type ProtocolCreate } from '../api/client'
 import Spinner from '../components/Spinner'
 import ErrorAlert from '../components/ErrorAlert'
+import TagInput from '../components/TagInput'
 
 const PHASES = [
-  { value: 'phase_1', label: 'Фаза I' },
-  { value: 'phase_2', label: 'Фаза II' },
-  { value: 'phase_3', label: 'Фаза III' },
-  { value: 'phase_4', label: 'Фаза IV' },
+  { value: 'I',   label: 'Фаза I' },
+  { value: 'II',  label: 'Фаза II' },
+  { value: 'III', label: 'Фаза III' },
+  { value: 'IV',  label: 'Фаза IV' },
 ]
 
 const AREAS = [
@@ -33,26 +34,29 @@ interface FormState {
   dosing: string
   inclusion_criteria: string[]
   exclusion_criteria: string[]
+  tags: string[]
   template_id: string
 }
 
 const initial: FormState = {
-  title: '', drug_name: '', inn: '', phase: 'phase_2', therapeutic_area: '',
+  title: '', drug_name: '', inn: '', phase: 'II', therapeutic_area: '',
   indication: '', population: '', primary_endpoint: '',
   secondary_endpoints: [''], duration_weeks: '24', dosing: '',
-  inclusion_criteria: [''], exclusion_criteria: [''], template_id: '',
+  inclusion_criteria: [''], exclusion_criteria: [''], tags: [], template_id: '',
 }
 
 export default function CreateProtocolPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState<FormState>(initial)
   const [templates, setTemplates] = useState<Template[]>([])
+  const [allTags, setAllTags] = useState<string[]>([])
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
   const [submitting, setSubmitting] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
 
   useEffect(() => {
     api.getTemplates().then(setTemplates).catch(() => {})
+    api.getAllTags().then(setAllTags).catch(() => {})
   }, [])
 
   const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -98,6 +102,7 @@ export default function CreateProtocolPage() {
         secondary_endpoints: form.secondary_endpoints.filter(s => s.trim()),
         inclusion_criteria: form.inclusion_criteria.filter(s => s.trim()),
         exclusion_criteria: form.exclusion_criteria.filter(s => s.trim()),
+        tags: form.tags,
         template_id: form.template_id || undefined,
       }
       const proto = await api.createProtocol(body)
@@ -264,6 +269,17 @@ export default function CreateProtocolPage() {
             onChange={(i, v) => setList('exclusion_criteria', i, v)}
             onAdd={() => addItem('exclusion_criteria')}
             onRemove={(i) => removeItem('exclusion_criteria', i)} />
+        </div>
+
+        {/* Tags */}
+        <div className="card p-5">
+          <h2 className="font-semibold text-gray-900 mb-1">Теги</h2>
+          <p className="text-sm text-gray-500 mb-3">Метки для классификации и быстрого поиска (например: GCP-review, Онкология, Срочно)</p>
+          <TagInput
+            value={form.tags}
+            onChange={tags => setForm(f => ({ ...f, tags }))}
+            suggestions={allTags}
+          />
         </div>
 
         {/* Actions */}

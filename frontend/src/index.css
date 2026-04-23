@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Synthia Orb animation ── */
+@keyframes synthia-hue {
+  from { filter: hue-rotate(0deg)   drop-shadow(0 0 24px rgba(139,92,246,.55)); }
+  to   { filter: hue-rotate(360deg) drop-shadow(0 0 32px rgba(99,102,241,.65)); }
+}
+@keyframes synthia-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.06); }
+}
+@keyframes synthia-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.synthia-orb {
+  animation:
+    synthia-hue   7s  linear   infinite,
+    synthia-pulse 3s  ease-in-out infinite;
+}
+.synthia-ring {
+  animation: synthia-spin 12s linear infinite;
+  transform-origin: center;
+}
+
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900 antialiased;

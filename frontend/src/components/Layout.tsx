@@ -1,5 +1,5 @@
-import { Outlet, NavLink } from 'react-router-dom'
-import { FlaskConical, Plus, List, LogOut, Shield, User } from 'lucide-react'
+import { Outlet, NavLink, Link } from 'react-router-dom'
+import { Sparkles, Plus, List, LogOut, Shield, User, ScrollText } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
@@ -17,15 +17,19 @@ export default function Layout() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-9 h-9 bg-brand-600 rounded-lg">
-                <FlaskConical className="w-5 h-5 text-white" />
+            <Link to="/protocols" className="flex items-center gap-3 group">
+              {/* Gradient orb logo */}
+              <div
+                className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0 group-hover:opacity-90 transition-opacity"
+                style={{ background: 'linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #22d3ee 100%)' }}
+              >
+                <Sparkles className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <span className="font-bold text-gray-900 text-sm leading-none block">AI Protocol Generator</span>
-                <span className="text-xs text-gray-400 leading-none">Qwen3.5-122B · GCP/ICH · FOR REVIEW ONLY</span>
+              <div className="leading-none">
+                <span className="font-bold text-gray-900 text-lg leading-tight block tracking-tight group-hover:text-brand-700 transition-colors">Synthia</span>
+                <span className="text-xs text-gray-400 leading-none">AI Protocol Generator</span>
               </div>
-            </div>
+            </Link>
 
             <div className="flex items-center gap-3">
               <nav className="flex items-center gap-1">
@@ -54,6 +58,17 @@ export default function Layout() {
                     Новый протокол
                   </NavLink>
                 )}
+                <NavLink
+                  to="/audit"
+                  className={({ isActive }) =>
+                    `flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isActive ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:bg-gray-100'
+                    }`
+                  }
+                >
+                  <ScrollText className="w-4 h-4" />
+                  Аудит
+                </NavLink>
               </nav>
 
               {user && (
@@ -87,7 +102,7 @@ export default function Layout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-xs text-gray-400">
-              AI Protocol Generator v0.2.0 · FOR RESEARCH USE ONLY — NOT FOR CLINICAL USE ·
+              Synthia v1.0.0 · FOR RESEARCH USE ONLY — NOT FOR CLINICAL USE ·
               Powered by InHouse/Qwen3.5-122B via internal AI Gateway
             </p>
             <a
