@@ -371,7 +371,6 @@ export default function ProtocolPage() {
   const hasContent = sections.length > 0
 
   return (
-    <>
     <div className="space-y-6">
       {/* Top bar */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -894,6 +893,109 @@ export default function ProtocolPage() {
           onClose={() => setShowDraft(false)}
         />
       )}
+
+      {/* ── Diff panel (slide-over modal) ─────────────────────────────── */}
+      {showDiffPanel && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setShowDiffPanel(false)} />
+          <div className="relative ml-auto w-full max-w-3xl bg-white shadow-2xl flex flex-col h-full overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+              <div className="flex items-center gap-2">
+                <GitCompare className="w-5 h-5 text-indigo-600" />
+                <h2 className="text-base font-semibold text-gray-800">Сравнение версий</h2>
+              </div>
+              <button onClick={() => setShowDiffPanel(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Version selectors */}
+            <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-100 bg-gray-50 shrink-0 flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 font-medium">Версия A:</label>
+                <select
+                  className="form-input text-xs py-1"
+                  value={diffV1 ?? versions[0]?.version_number ?? ''}
+                  onChange={e => setDiffV1(Number(e.target.value))}
+                >
+                  {versions.map(v => (
+                    <option key={v.id} value={v.version_number}>v{v.version_number}{v.is_archived ? ' [Archive]' : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <span className="text-gray-300 font-bold">→</span>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 font-medium">Версия B:</label>
+                <select
+                  className="form-input text-xs py-1"
+                  value={diffV2 ?? versions[versions.length - 1]?.version_number ?? ''}
+                  onChange={e => setDiffV2(Number(e.target.value))}
+                >
+                  {versions.map(v => (
+                    <option key={v.id} value={v.version_number}>v{v.version_number}{v.is_archived ? ' [Archive]' : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={handleLoadDiff}
+                disabled={diffLoading}
+                className="btn btn-primary text-xs px-3 py-1.5 ml-auto"
+              >
+                {diffLoading ? <Spinner size={14} /> : <><RefreshCcw className="w-3.5 h-3.5" /> Обновить</>}
+              </button>
+            </div>
+
+            {/* Diff body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {diffError && <ErrorAlert message={diffError} />}
+              {diffLoading && <div className="flex justify-center py-12"><Spinner size={28} /></div>}
+              {!diffLoading && diffResult && (
+                diffResult.length === 0 ? (
+                  <p className="text-center text-gray-400 py-8">Нет разделов для сравнения</p>
+                ) : (
+                  diffResult.map(sec => (
+                    <div key={sec.section} className={`rounded-lg border ${sec.changed ? 'border-amber-200' : 'border-gray-100'}`}>
+                      <div className={`flex items-center justify-between px-4 py-2 rounded-t-lg text-sm font-medium ${sec.changed ? 'bg-amber-50 text-amber-800' : 'bg-gray-50 text-gray-500'}`}>
+                        <span>{SECTION_LABELS[sec.section] ?? sec.section}</span>
+                        {sec.changed
+                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">изменён</span>
+                          : <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">без изменений</span>
+                        }
+                      </div>
+                      {sec.changed && (
+                        <div className="p-0 overflow-x-auto">
+                          <pre className="text-[11px] leading-5 font-mono p-4 whitespace-pre-wrap">
+                            {sec.diff.split('\n').map((line: string, i: number) => (
+                              <span
+                                key={i}
+                                className={`block ${
+                                  line.startsWith('+') && !line.startsWith('+++')
+                                    ? 'bg-emerald-50 text-emerald-800'
+                                    : line.startsWith('-') && !line.startsWith('---')
+                                    ? 'bg-red-50 text-red-700'
+                                    : line.startsWith('@@')
+                                    ? 'bg-sky-50 text-sky-600'
+                                    : 'text-gray-600'
+                                }`}
+                              >
+                                {line || '\u00A0'}
+                              </span>
+                            ))}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )
+              )}
+              {!diffLoading && !diffResult && !diffError && (
+                <p className="text-center text-gray-400 py-8">Выберите версии и нажмите «Обновить»</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1135,109 +1237,6 @@ function ProtocolAuditPanel({
           </div>
         )}
       </div>
-
-      {/* ── Diff panel (slide-over modal) ─────────────────────────────── */}
-      {showDiffPanel && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="fixed inset-0 bg-black/40" onClick={() => setShowDiffPanel(false)} />
-          <div className="relative ml-auto w-full max-w-3xl bg-white shadow-2xl flex flex-col h-full overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
-              <div className="flex items-center gap-2">
-                <GitCompare className="w-5 h-5 text-indigo-600" />
-                <h2 className="text-base font-semibold text-gray-800">Сравнение версий</h2>
-              </div>
-              <button onClick={() => setShowDiffPanel(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Version selectors */}
-            <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-100 bg-gray-50 shrink-0 flex-wrap">
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500 font-medium">Версия A:</label>
-                <select
-                  className="form-input text-xs py-1"
-                  value={diffV1 ?? versions[0]?.version_number ?? ''}
-                  onChange={e => setDiffV1(Number(e.target.value))}
-                >
-                  {versions.map(v => (
-                    <option key={v.id} value={v.version_number}>v{v.version_number}{v.is_archived ? ' [Archive]' : ''}</option>
-                  ))}
-                </select>
-              </div>
-              <span className="text-gray-300 font-bold">→</span>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500 font-medium">Версия B:</label>
-                <select
-                  className="form-input text-xs py-1"
-                  value={diffV2 ?? versions[versions.length - 1]?.version_number ?? ''}
-                  onChange={e => setDiffV2(Number(e.target.value))}
-                >
-                  {versions.map(v => (
-                    <option key={v.id} value={v.version_number}>v{v.version_number}{v.is_archived ? ' [Archive]' : ''}</option>
-                  ))}
-                </select>
-              </div>
-              <button
-                onClick={handleLoadDiff}
-                disabled={diffLoading}
-                className="btn btn-primary text-xs px-3 py-1.5 ml-auto"
-              >
-                {diffLoading ? <Spinner size={14} /> : <><RefreshCcw className="w-3.5 h-3.5" /> Обновить</>}
-              </button>
-            </div>
-
-            {/* Diff body */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-              {diffError && <ErrorAlert message={diffError} />}
-              {diffLoading && <div className="flex justify-center py-12"><Spinner size={28} /></div>}
-              {!diffLoading && diffResult && (
-                diffResult.length === 0 ? (
-                  <p className="text-center text-gray-400 py-8">Нет разделов для сравнения</p>
-                ) : (
-                  diffResult.map(sec => (
-                    <div key={sec.section} className={`rounded-lg border ${sec.changed ? 'border-amber-200' : 'border-gray-100'}`}>
-                      <div className={`flex items-center justify-between px-4 py-2 rounded-t-lg text-sm font-medium ${sec.changed ? 'bg-amber-50 text-amber-800' : 'bg-gray-50 text-gray-500'}`}>
-                        <span>{SECTION_LABELS[sec.section] ?? sec.section}</span>
-                        {sec.changed
-                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">изменён</span>
-                          : <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">без изменений</span>
-                        }
-                      </div>
-                      {sec.changed && (
-                        <div className="p-0 overflow-x-auto">
-                          <pre className="text-[11px] leading-5 font-mono p-4 whitespace-pre-wrap">
-                            {sec.diff.split('\n').map((line, i) => (
-                              <span
-                                key={i}
-                                className={`block ${
-                                  line.startsWith('+') && !line.startsWith('+++')
-                                    ? 'bg-emerald-50 text-emerald-800'
-                                    : line.startsWith('-') && !line.startsWith('---')
-                                    ? 'bg-red-50 text-red-700'
-                                    : line.startsWith('@@')
-                                    ? 'bg-sky-50 text-sky-600'
-                                    : 'text-gray-600'
-                                }`}
-                              >
-                                {line || '\u00A0'}
-                              </span>
-                            ))}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )
-              )}
-              {!diffLoading && !diffResult && !diffError && (
-                <p className="text-center text-gray-400 py-8">Выберите версии и нажмите «Обновить»</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }
