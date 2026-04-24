@@ -1,8 +1,8 @@
 # CHECKPOINT — Восстановление контекста
 
 **Создан:** 2026-04-23  
-**Версия:** 6.0.0  
-**Обновлён:** 2026-04-23 (сессия 6 — Synthia branding, search, draft viewer, tag QA, docs)  
+**Версия:** 7.0.0  
+**Обновлён:** 2026-04-24 (сессия 7 — Deploy prep, docs audit, METRICS.md, GitLab push, Dockerfile fix)  
 **Назначение:** Полное восстановление контекста после очистки чата
 
 ---
@@ -434,7 +434,27 @@ c:\research-protocols-23042026\
 - Synthia брендинг: SynthiaOrb анимация, переименование
 - Нормативная база GCP: Приказ №200н → GCP ЕАЭС, добавлены №75н, №708н, ЕЭК №77
 
-### Сессия 6 (23.04.2026) ← текущая
+### Сессия 7 (24.04.2026) ← текущая
+
+- **GitLab push**: SSH ключ работает — все коммиты запушены (`master`)
+- **Traefik labels**: добавлены в `docker-compose.yml` для frontend
+- **`.env`**: дополнен всеми AUTH-переменными (ADMIN/EMPLOYEE/AUDITOR + SECRET_KEY + APP_DOMAIN)
+- **Аудит документации GitLab**: найдено и исправлено 7 проблем:
+  - `RELEASE-NOTES.md` переписан → v2.0.0 (отражает реальный MVP)
+  - `ADR-002-openrouter.md` → `ADR-002-ai-gateway.md` (переименован)
+  - `CHECKPOINT.md` обновлён (136 тестов, test-plan 3.2.0)
+  - `smoke_test.http` — добавлены Bearer token заголовки
+  - `.gitignore` — добавлен паттерн `qa_*.txt`
+  - `design-system-plan.md` — обновлён статус и фактические компоненты
+  - `artifacts-catalog.md` — ссылка на ADR-002 обновлена
+- **backend/Dockerfile**: улучшен до multi-stage + добавлен HEALTHCHECK
+- **`requirements-dev.txt`**: создан (pytest зависимости отдельно)
+- **`docs/METRICS.md`**: создан — все метрики проекта для презентации заказчику
+- **System Review canvas**: оценка 7.3/10, вердикт: Continue
+- **WakaTime canvas**: 3ч 05мин трекера, 85% готовность, буфер 3.5ч до дедлайна
+- **Фаза 3 (Deploy)**: ожидает URL Dokploy от пользователя
+
+### Сессия 6 (23.04.2026)
 - **Logo → NavLink:** логотип Synthia кликабелен → возврат на /protocols
 - **DraftModal:** кнопка «Черновик» → модал всех разделов + print/PDF с watermark
 - **ProtocolListPage:** полная переработка — поиск + autocomplete (debounce 250ms) + фильтры (Фаза/Статус/Область) + счётчик активных фильтров
@@ -452,9 +472,12 @@ c:\research-protocols-23042026\
 2. Проверить статус docker: `docker compose ps`
 3. Актуальные порты видны в выводе ps
 4. **Следующая задача: Фаза 3 — Deploy на Dokploy**
-   - Прочитать `dokploy-repo-prep/SKILL.md`
-   - Добавить Traefik labels в `docker-compose.yml`
-   - Деплой через Dokploy UI с GitLab репо
+   - Traefik labels уже добавлены в `docker-compose.yml` ✅
+   - GitLab push работает по SSH ✅
+   - Нужен URL Dokploy UI от пользователя
+   - Инструкция: `DEPLOY.md` секция 6
+
+**Для презентации заказчику:** `docs/METRICS.md` — все метрики проекта
 
 ---
 
