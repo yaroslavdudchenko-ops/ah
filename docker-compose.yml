@@ -22,10 +22,10 @@ services:
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-changeme_please_in_production}@db:5432/${POSTGRES_DB:-protocols}
-      AI_GATEWAY_URL: ${AI_GATEWAY_URL}
-      AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY}
+      AI_GATEWAY_URL: ${AI_GATEWAY_URL:?Укажите AI_GATEWAY_URL в Environment Dokploy}
+      AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY:?Укажите AI_GATEWAY_API_KEY в Environment Dokploy}
       AI_GATEWAY_MODEL: ${AI_GATEWAY_MODEL:-InHouse/Qwen3.5-122B}
-      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost","http://localhost:80","https://localhost"]'}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:80,https://localhost}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       APP_ENV: ${APP_ENV:-development}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
@@ -63,11 +63,6 @@ services:
       retries: 3
       start_period: 10s
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.synthia-frontend.rule=Host(`${APP_DOMAIN:-localhost}`)"
-      - "traefik.http.routers.synthia-frontend.entrypoints=web"
-      - "traefik.http.services.synthia-frontend.loadbalancer.server.port=80"
 
 volumes:
   db-data:
