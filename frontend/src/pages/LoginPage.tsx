@@ -117,8 +117,8 @@ export default function LoginPage() {
           <div className="space-y-1.5">
             {[
               { u: 'admin',    p: 'admin123',    r: 'admin' },
-              { u: 'employee', p: 'employee123', r: 'employee' },
-              { u: 'auditor',  p: 'auditor123',  r: 'auditor' },
+              { u: 'employee', p: 'emp123', r: 'employee' },
+              { u: 'auditor',  p: 'aud123',  r: 'auditor' },
             ].map(({ u, p, r }) => (
               <button
                 key={u}
