@@ -86,22 +86,39 @@ API docs (Swagger): `http://localhost:8000/docs`
 
 ### 6.2 Переменные окружения в UI
 
-1. Открой сервис → вкладка **Environment**
-2. Добавь переменные из таблицы в разделе 2 (формат `KEY=value`)
-3. Нажми **Save**
+> ⚠️ **ВАЖНО (ИБ):** Переменные ДОЛЖНЫ быть заданы в Dokploy **ДО** первого нажатия «Deploy».
+> Без них `docker compose` завершится с ошибкой `"variable is not set"` — это нормальный фейл-сейф, не баг.
+> **Не добавляй дефолтные значения в docker-compose.yml** — они попадают в репозиторий и становятся публичными.
 
-Минимально для старта (скопировать из `.env.example`):
+Порядок:
+1. Открой сервис → вкладка **Environment**
+2. Добавь переменные **до** нажатия Deploy (формат `KEY=value`, по одному на строку)
+3. Нажми **Save**
+4. Только после этого → **Deploy**
+
+**Обязательные переменные (без них деплой не запустится):**
 ```
-POSTGRES_PASSWORD=your_strong_password_here
-SECRET_KEY=at_least_32_random_chars_here_abc123
+POSTGRES_PASSWORD=<сгенерируй: openssl rand -hex 16>
+SECRET_KEY=<сгенерируй: openssl rand -hex 32>
 AI_GATEWAY_URL=https://ai-gateway.internal/v1
-AI_GATEWAY_API_KEY=your-gateway-api-key
+AI_GATEWAY_API_KEY=<ключ из внутреннего AI Gateway>
+```
+
+**Рекомендуемые для production:**
+```
 CORS_ORIGINS=["https://your-domain.traefik.me"]
 APP_DOMAIN=your-domain.traefik.me
+LOG_LEVEL=info
+APP_ENV=production
 ```
 
-> ⚠️ `POSTGRES_PASSWORD` **обязателен** — без него docker compose не запустится (ошибка interpolation на этапе `docker compose up`).
-> Все остальные переменные имеют дефолтные значения, но их **нужно изменить** для production.
+**Как сгенерировать надёжные значения (в терминале):**
+```bash
+# POSTGRES_PASSWORD
+openssl rand -hex 16
+# SECRET_KEY (минимум 32 байта)
+openssl rand -hex 32
+```
 
 ### 6.3 Isolated Deployment (рекомендуется)
 
@@ -136,7 +153,7 @@ APP_DOMAIN=your-domain.traefik.me
 
 | Симптом | Причина | Решение |
 |---|---|---|
-| Dokploy: **`1. error`** / `variable not set` | `POSTGRES_PASSWORD` не задан в Dokploy → docker compose не может подставить значение | Environment → добавить `POSTGRES_PASSWORD` → Save → Deploy |
+| Dokploy: **`1. error`** / `variable not set` | Обязательные переменные не заданы в Dokploy **до** деплоя | Environment → задать `POSTGRES_PASSWORD`, `SECRET_KEY`, `AI_GATEWAY_URL`, `AI_GATEWAY_API_KEY` → **Save** → **Deploy** (не наоборот!) |
 | Деплой упал: `required variable not set` | Не задана обязательная переменная | Environment → добавить переменную из `.env.example` → Deploy |
 | Домен не открывается после деплоя | Traefik labels применяются только при деплое | Нажать Deploy после изменения домена |
 | Данные пропали после деплоя | Использовались `./` пути в volumes | Заменить на named volumes (`db-data`) |

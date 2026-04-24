@@ -3,8 +3,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-app}
-      # CHANGE THIS in production! Set POSTGRES_PASSWORD env var in Dokploy / .env
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_please_in_production}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-protocols}
     volumes:
       - db-data:/var/lib/postgresql/data
@@ -22,7 +21,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-changeme_please_in_production}@db:5432/${POSTGRES_DB:-protocols}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-protocols}
       AI_GATEWAY_URL: ${AI_GATEWAY_URL}
       AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY}
       AI_GATEWAY_MODEL: ${AI_GATEWAY_MODEL:-InHouse/Qwen3.5-122B}
