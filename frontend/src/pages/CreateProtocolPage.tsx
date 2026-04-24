@@ -5,6 +5,7 @@ import { api, type Template, type ProtocolCreate } from '../api/client'
 import Spinner from '../components/Spinner'
 import ErrorAlert from '../components/ErrorAlert'
 import TagInput from '../components/TagInput'
+import AutocompleteField from '../components/AutocompleteField'
 
 const PHASES = [
   { value: 'I',   label: 'Фаза I' },
@@ -158,12 +159,22 @@ export default function CreateProtocolPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="form-label">МНН (INN) *</label>
-              <input className="form-input" value={form.inn} onChange={set('inn')} placeholder="пролголимаб" />
+              <AutocompleteField
+                field="inn"
+                value={form.inn}
+                onChange={v => setForm(f => ({ ...f, inn: v }))}
+                placeholder="пролголимаб"
+              />
               {errors.inn && <p className="form-error">{errors.inn}</p>}
             </div>
             <div>
               <label className="form-label">Торговое наименование *</label>
-              <input className="form-input" value={form.drug_name} onChange={set('drug_name')} placeholder="BCD-100" />
+              <AutocompleteField
+                field="drug_name"
+                value={form.drug_name}
+                onChange={v => setForm(f => ({ ...f, drug_name: v }))}
+                placeholder="BCD-100"
+              />
               {errors.drug_name && <p className="form-error">{errors.drug_name}</p>}
             </div>
           </div>
@@ -192,23 +203,37 @@ export default function CreateProtocolPage() {
 
           <div>
             <label className="form-label">Показание / Нозология *</label>
-            <textarea className="form-input min-h-[72px] resize-none" value={form.indication} onChange={set('indication')}
-              placeholder="Нерезектабельная или метастатическая меланома кожи, не получавшая ранее иммунотерапии..." />
+            <AutocompleteField
+              field="indication"
+              value={form.indication}
+              onChange={v => setForm(f => ({ ...f, indication: v }))}
+              placeholder="Нерезектабельная или метастатическая меланома кожи, не получавшая ранее иммунотерапии..."
+              multiline rows={3}
+            />
             {errors.indication && <p className="form-error">{errors.indication}</p>}
           </div>
 
           <div>
             <label className="form-label">Популяция пациентов *</label>
-            <textarea className="form-input min-h-[72px] resize-none" value={form.population} onChange={set('population')}
-              placeholder="Взрослые пациенты ≥18 лет с подтверждённым гистологически диагнозом..." />
+            <AutocompleteField
+              field="population"
+              value={form.population}
+              onChange={v => setForm(f => ({ ...f, population: v }))}
+              placeholder="Взрослые пациенты ≥18 лет с подтверждённым гистологически диагнозом..."
+              multiline rows={3}
+            />
             {errors.population && <p className="form-error">{errors.population}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="form-label">Режим дозирования *</label>
-              <input className="form-input" value={form.dosing} onChange={set('dosing')}
-                placeholder="1 мг/кг в/в каждые 2 недели" />
+              <AutocompleteField
+                field="dosing"
+                value={form.dosing}
+                onChange={v => setForm(f => ({ ...f, dosing: v }))}
+                placeholder="1 мг/кг в/в каждые 2 недели"
+              />
               {errors.dosing && <p className="form-error">{errors.dosing}</p>}
             </div>
             <div>
@@ -226,9 +251,13 @@ export default function CreateProtocolPage() {
 
           <div>
             <label className="form-label">Первичная конечная точка *</label>
-            <textarea className="form-input min-h-[72px] resize-none" value={form.primary_endpoint}
-              onChange={set('primary_endpoint')}
-              placeholder="Общая выживаемость (OS) — время от рандомизации до смерти по любой причине..." />
+            <AutocompleteField
+              field="primary_endpoint"
+              value={form.primary_endpoint}
+              onChange={v => setForm(f => ({ ...f, primary_endpoint: v }))}
+              placeholder="Общая выживаемость (OS) — время от рандомизации до смерти по любой причине..."
+              multiline rows={3}
+            />
             {errors.primary_endpoint && <p className="form-error">{errors.primary_endpoint}</p>}
           </div>
 

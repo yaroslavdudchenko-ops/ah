@@ -1,15 +1,15 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Plus, FlaskConical, Clock, ChevronRight, Trash2,
+  Plus, FlaskConical, Clock, ChevronRight,
   Tag, X, Search, SlidersHorizontal, ChevronDown,
 } from 'lucide-react'
 import { api, type ProtocolListItem } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import StatusBadge from '../components/StatusBadge'
 import TagBadge from '../components/TagBadge'
-import Spinner from '../components/Spinner'
 import ErrorAlert from '../components/ErrorAlert'
+import Spinner from '../components/Spinner'
 
 const PHASE_OPTIONS = [
   { value: '', label: 'Все фазы' },
@@ -21,9 +21,10 @@ const PHASE_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Все статусы' },
-  { value: 'draft', label: 'Черновик' },
+  { value: 'draft',    label: 'Черновик' },
   { value: 'generated', label: 'Сгенерирован' },
   { value: 'approved', label: 'Одобрен' },
+  { value: 'archived', label: 'В архиве' },
 ]
 
 const AREA_OPTIONS = [
@@ -38,13 +39,12 @@ const PHASE_LABELS: Record<string, string> = {
 
 export default function ProtocolListPage() {
   const { user } = useAuth()
-  const canDelete = user?.role === 'admin'
 
   // Data
   const [protocols, setProtocols] = useState<ProtocolListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState<string | null>(null)
+  const [allTags, setAllTags] = useState<string[]>([])
 
   // Search state
   const [searchInput, setSearchInput] = useState('')
@@ -85,6 +85,8 @@ export default function ProtocolListPage() {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => { api.getAllTags().then(setAllTags).catch(() => {}) }, [])
+
   // Debounce search input → suggestions
   useEffect(() => {
     if (searchInput.length < 2) { setSuggestions([]); return }
@@ -113,19 +115,6 @@ export default function ProtocolListPage() {
     setSearchQuery(value)
     setSearchInput(value)
     setShowSuggestions(false)
-  }
-
-  const handleDelete = async (id: string, title: string) => {
-    if (!confirm(`Удалить протокол «${title}»?`)) return
-    setDeleting(id)
-    try {
-      await api.deleteProtocol(id)
-      setProtocols(prev => prev.filter(p => p.id !== id))
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setDeleting(null)
-    }
   }
 
   const handleTagClick = (tag: string) => {
@@ -238,6 +227,19 @@ export default function ProtocolListPage() {
                 {AREA_OPTIONS.map(a => <option key={a} value={a}>{a || 'Все области'}</option>)}
               </select>
             </div>
+            <div>
+              <label className="form-label flex items-center gap-1">
+                <Tag className="w-3.5 h-3.5" /> Тег
+              </label>
+              <select
+                className="form-input text-sm"
+                value={tagFilter ?? ''}
+                onChange={e => setTagFilter(e.target.value || null)}
+              >
+                <option value="">Все теги</option>
+                {allTags.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
             {activeFilterCount > 0 && (
               <button onClick={resetFilters} className="btn-secondary text-sm flex items-center gap-1.5 self-end">
                 <X className="w-3.5 h-3.5" /> Сбросить всё
@@ -306,16 +308,6 @@ export default function ProtocolListPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {canDelete && (
-                    <button
-                      onClick={() => handleDelete(p.id, p.title)}
-                      disabled={deleting === p.id}
-                      className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors"
-                      title="Удалить"
-                    >
-                      {deleting === p.id ? <Spinner size={16} /> : <Trash2 className="w-4 h-4" />}
-                    </button>
-                  )}
                   <Link
                     to={`/protocols/${p.id}`}
                     className="p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50 transition-colors"

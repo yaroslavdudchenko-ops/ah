@@ -96,6 +96,16 @@ export const api = {
   // Tags
   getAllTags: () => request<string[]>('/tags'),
 
+  // Field suggestions — RAG-extensible: same API, backend can swap to semantic search
+  getFieldSuggestions: (field: string, q: string, limit = 8) => {
+    const params = new URLSearchParams({ field, q, limit: String(limit) })
+    return request<string[]>(`/protocols/suggestions?${params}`)
+  },
+
+  // Fork — create editable revision from locked protocol
+  forkProtocol: (id: string) =>
+    request<Protocol>(`/protocols/${id}/fork`, { method: 'POST' }),
+
   // Audit Trail
   listAuditLog: (params?: { from_date?: string; to_date?: string; action?: string; performed_by?: string; limit?: number; offset?: number }) => {
     const q = new URLSearchParams()

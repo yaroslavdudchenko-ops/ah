@@ -11,6 +11,12 @@ from app.schemas.protocol import (
     VersionResponse, error_body,
 )
 
+# Fields allowed as suggestion sources — extensible for RAG
+SUGGESTION_FIELDS = {
+    "indication", "population", "primary_endpoint", "dosing",
+    "drug_name", "inn", "therapeutic_area",
+}
+
 # Fields that remain mutable even on locked (versioned) protocols
 _ALWAYS_MUTABLE = {"tags", "status"}
 # Fields that lock the protocol for editing once it has AI-generated versions
@@ -88,6 +94,38 @@ async def list_protocols(
     if tag:
         protocols = [p for p in protocols if tag in (p.tags or [])]
     return protocols[offset : offset + limit]
+
+
+@router.get("/suggestions", response_model=list[str])
+async def field_suggestions(
+    field: str = Query(..., description="Protocol field name to get suggestions for"),
+    q: str = Query("", description="Search query (prefix/substring match)"),
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(get_current_user),
+):
+    """Return unique non-empty values for a given protocol field that match q.
+
+    Designed to be replaced by a RAG/semantic provider in the future:
+    the field + q contract is stable; the backend implementation can be
+    swapped for embedding-based retrieval without changing the API surface.
+    """
+    if field not in SUGGESTION_FIELDS:
+        raise HTTPException(
+            status_code=422,
+            detail=error_body("INVALID_FIELD", f"Field '{field}' is not a valid suggestion source."),
+        )
+    col = getattr(Protocol, field, None)
+    if col is None:
+        raise HTTPException(status_code=422, detail=error_body("INVALID_FIELD", "Unknown field."))
+
+    q_stmt = select(col).where(col.isnot(None)).where(col != "")
+    if q:
+        q_stmt = q_stmt.where(col.ilike(f"%{q}%"))
+    q_stmt = q_stmt.group_by(col).order_by(col).limit(limit)
+
+    result = await db.execute(q_stmt)
+    return [row[0] for row in result if row[0] and str(row[0]).strip()]
 
 
 @router.get("/{protocol_id}", response_model=ProtocolResponse)
@@ -204,6 +242,65 @@ async def get_version(
             detail=error_body("VERSION_NOT_FOUND", f"Version {version_id} not found"),
         )
     return version
+
+
+@router.post("/{protocol_id}/fork", response_model=ProtocolResponse, status_code=status.HTTP_201_CREATED)
+async def fork_protocol(
+    protocol_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write),
+):
+    """Create a new editable revision from a locked protocol.
+
+    The source protocol is archived (status=archived, tag 'Archive' added).
+    The fork is a fresh draft with identical study design metadata.
+    """
+    source = await _get_or_404(protocol_id, db)
+
+    # Archive the source protocol
+    archived_tags = list(source.tags or [])
+    if "Archive" not in archived_tags:
+        archived_tags.append("Archive")
+    source.status = "archived"
+    source.tags = archived_tags
+    db.add(AuditLog(
+        entity_type="protocol", entity_id=protocol_id,
+        action="archived_by_fork",
+        performed_by=current_user["username"],
+        metadata_={"role": current_user["role"], "forked_by": current_user["username"]},
+    ))
+
+    # Create the fork
+    fork_id = str(uuid.uuid4())
+    fork = Protocol(
+        id=fork_id,
+        title=source.title,
+        drug_name=source.drug_name,
+        inn=source.inn,
+        phase=source.phase,
+        therapeutic_area=source.therapeutic_area,
+        indication=source.indication,
+        population=source.population,
+        primary_endpoint=source.primary_endpoint,
+        secondary_endpoints=list(source.secondary_endpoints or []),
+        duration_weeks=source.duration_weeks,
+        dosing=source.dosing,
+        inclusion_criteria=list(source.inclusion_criteria or []),
+        exclusion_criteria=list(source.exclusion_criteria or []),
+        status="draft",
+        tags=list(source.tags or []),
+        template_id=source.template_id,
+    )
+    db.add(fork)
+    db.add(AuditLog(
+        entity_type="protocol", entity_id=fork_id,
+        action="create",
+        performed_by=current_user["username"],
+        metadata_={"role": current_user["role"], "forked_from": protocol_id, "title": fork.title},
+    ))
+    await db.flush()
+    await db.refresh(fork)
+    return fork
 
 
 @router.get("/{protocol_id}/diff")

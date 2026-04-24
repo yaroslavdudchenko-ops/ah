@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Zap, Download, Shield, CheckCircle2,
-  AlertTriangle, Info, FileText, RefreshCcw, RotateCcw, Clock, User, Activity, Tag, Lock
+  AlertTriangle, Info, FileText, RefreshCcw, RotateCcw, Clock, User, Activity, Tag, Lock, GitBranch
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { api, type Protocol, type ProtocolVersion, type GenerateStatus, type CheckResponse, type AuditEntry } from '../api/client'
@@ -58,7 +58,7 @@ type PageTab = 'content' | 'audit'
 export default function ProtocolPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { isReadOnly } = useAuth()
+  const { isReadOnly, user } = useAuth()
 
   const [tab, setTab] = useState<PageTab>('content')
   const [protocol, setProtocol]           = useState<Protocol | null>(null)
@@ -83,11 +83,13 @@ export default function ProtocolPage() {
   const [generating, setGenerating] = useState(false)
   const [checking, setChecking]   = useState(false)
   const [exporting, setExporting] = useState<string | null>(null)
+  const [forking, setForking]     = useState(false)
   const [error, setError]         = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string | null>(null)
 
   // Protocol is locked once it has AI-generated versions
   const isLocked = versions.length > 0
+  const isEmployee = user?.role === 'employee'
 
   const loadProtocol = useCallback(async () => {
     if (!id) return
@@ -233,6 +235,20 @@ export default function ProtocolPage() {
     }
   }
 
+  const handleFork = async () => {
+    if (!id || !protocol) return
+    if (!confirm(`Создать новую редактируемую ревизию протокола «${protocol.title}»?\n\nТекущий протокол будет архивирован.`)) return
+    setForking(true)
+    setError(null)
+    try {
+      const fork = await api.forkProtocol(id)
+      navigate(`/protocols/${fork.id}`)
+    } catch (e) {
+      setError((e as Error).message)
+      setForking(false)
+    }
+  }
+
   if (loading) return <div className="flex justify-center py-24"><Spinner size={36} /></div>
   if (!protocol) return <div className="py-16"><ErrorAlert message="Протокол не найден" /></div>
 
@@ -266,11 +282,17 @@ export default function ProtocolPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {!isReadOnly && (
+          {!isReadOnly && !isLocked && (
             <button onClick={handleGenerate} disabled={generating || checking} className="btn-primary">
               {generating && !regenSection
                 ? <><Spinner size={16} /> Генерация...</>
-                : <><Zap className="w-4 h-4" /> {isLocked ? 'Перегенерировать' : 'Генерировать'}</>}
+                : <><Zap className="w-4 h-4" /> Генерировать</>}
+            </button>
+          )}
+          {isLocked && isEmployee && (
+            <button onClick={handleFork} disabled={forking} className="btn-secondary flex items-center gap-1.5">
+              {forking ? <Spinner size={16} /> : <GitBranch className="w-4 h-4" />}
+              Создать ревизию
             </button>
           )}
 
@@ -314,10 +336,10 @@ export default function ProtocolPage() {
             onChange={e => setComment(e.target.value)}
             maxLength={1000}
           />
-          {isLocked && (
+          {isLocked && isEmployee && (
             <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
               <Lock className="w-3 h-3" />
-              При перегенерации предыдущая версия будет автоматически архивирована (GCP ALCOA++).
+              Протокол заблокирован. Используйте «Создать ревизию» — текущая версия будет архивирована (GCP ALCOA++).
             </p>
           )}
         </div>
@@ -542,7 +564,7 @@ export default function ProtocolPage() {
           <p className="text-sm text-gray-500 mb-5 max-w-sm">
             Нажмите «Генерировать», и AI создаст все разделы протокола в соответствии с ICH E6(R2) GCP
           </p>
-          {!isReadOnly && (
+          {!isReadOnly && !isLocked && (
             <button onClick={handleGenerate} className="btn-primary">
               <Zap className="w-4 h-4" /> Генерировать протокол
             </button>
