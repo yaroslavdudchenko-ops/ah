@@ -140,7 +140,9 @@ async def _run_generation(
                 _tasks[task_id].update({"status": "failed", "error": "Protocol not found"})
                 return
 
-            content = await generate_protocol_sections(protocol, sections, custom_prompt=custom_prompt)
+            content = await generate_protocol_sections(
+                protocol, sections, custom_prompt=custom_prompt, db=db
+            )
             duration_ms = int((time.monotonic() - t0) * 1000)
 
             from sqlalchemy import func as sqlfunc, update as sqla_update
@@ -188,6 +190,14 @@ async def _run_generation(
                 "sections_done": list(content.keys()),
                 "version_id": version.id,
             })
+
+            # RAG: index the new version in the background (non-blocking)
+            try:
+                from app.services.embedding_service import index_version
+                await index_version(db, version.id, content)
+            except Exception as emb_exc:
+                logger.warning("post_gen_index_failed", extra={"error": str(emb_exc)})
+
         except Exception as exc:
             logger.error("generation_failed", extra={"task_id": task_id, "error": str(exc)})
             await db.rollback()

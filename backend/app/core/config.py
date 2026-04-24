@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     AI_GATEWAY_MODEL: str = "InHouse/Qwen3.5-122B"
     AI_GATEWAY_TIMEOUT: int = 90
 
+    # Embeddings (RAG) — optional; if empty, RAG is silently disabled
+    AI_EMBEDDING_URL: Optional[str] = None
+    AI_EMBEDDING_MODEL: str = "InHouse/embeddings-model-1"
+    AI_EMBEDDING_DIMS: int = 1536
+    AI_EMBEDDING_TIMEOUT: int = 30
+    RAG_SIMILARITY_THRESHOLD: float = 0.65
+    RAG_TOP_K: int = 3
+
     APP_ENV: str = "development"
     LOG_LEVEL: str = "info"
     CORS_ORIGINS: Optional[List[str]] = None

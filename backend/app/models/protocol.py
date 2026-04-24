@@ -7,6 +7,7 @@ from sqlalchemy.sql import func
 from app.models.base import Base
 
 
+
 def _uuid() -> str:
     return str(uuid.uuid4())
 
@@ -126,3 +127,28 @@ class AuditLog(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class ProtocolEmbedding(Base):
+    """
+    Vector embeddings for RAG.
+    Phase 1: JSONB storage + Python cosine similarity (up to ~5000 protocols).
+    Phase 2 (future): pgvector/pgvector:pg16 + vector(1536) + IVFFlat index.
+    """
+
+    __tablename__ = "protocol_embeddings"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    version_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("protocol_versions.id", ondelete="CASCADE"), nullable=False
+    )
+    section_key: Mapped[str] = mapped_column(String(50), nullable=False)
+    embedding: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    model: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="InHouse/embeddings-model-1"
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    version: Mapped["ProtocolVersion"] = relationship("ProtocolVersion")

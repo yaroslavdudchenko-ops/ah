@@ -1,10 +1,19 @@
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from app.services.ai_gateway import ai_client, AIGatewayError
 from app.models.protocol import Protocol
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
 logger = logging.getLogger(__name__)
+
+_RAG_SECTION_INTRO = (
+    "\n\n--- КОНТЕКСТ ИЗ ОДОБРЕННЫХ ПРОТОКОЛОВ (только для справки, не копировать) ---\n"
+    "Ниже — аналогичные разделы из существующих протоколов. "
+    "Используй их как структурный ориентир, но генерируй текст для ТЕКУЩЕГО исследования:\n\n"
+)
 
 SYSTEM_PROMPT = """Ты — эксперт по разработке клинических протоколов исследований (GCP/ICH E6 R2, GCP ЕАЭС, 61-ФЗ).
 Генерируй чёткий, структурированный текст раздела протокола КИ.
@@ -129,12 +138,19 @@ def _build_context(protocol: Protocol) -> str:
 
 
 async def _generate_section(
-    section: str, protocol: Protocol, custom_prompt: str | None = None
+    section: str,
+    protocol: Protocol,
+    custom_prompt: str | None = None,
+    rag_context: str | None = None,
 ) -> tuple[str, str]:
     """Generate one section. Returns (section_name, text)."""
     section_prompt = SECTION_PROMPTS.get(section, f"Сгенерируй раздел {section}")
     context_str = _build_context(protocol)
     user_prompt = f"{section_prompt}\n\n{context_str}"
+
+    if rag_context:
+        user_prompt += rag_context
+
     if custom_prompt:
         user_prompt += f"\n\nДОПОЛНИТЕЛЬНЫЕ ИНСТРУКЦИИ ОТ ПОЛЬЗОВАТЕЛЯ:\n{custom_prompt}"
 
@@ -150,6 +166,50 @@ async def _generate_section(
         fallback = _fallback_section(section, protocol)
         logger.warning("ai_fallback_used", extra={"section": section, "protocol_id": protocol.id})
         return section, fallback
+
+
+async def _fetch_rag_context(
+    section: str,
+    protocol: Protocol,
+    db: "AsyncSession",
+    current_version_ids: Optional[list[str]] = None,
+) -> str | None:
+    """
+    Retrieve similar sections from DB for RAG augmentation.
+    Returns None if RAG is disabled or no relevant results found.
+    """
+    try:
+        from app.services.embedding_service import embed_text, find_similar_sections
+        from app.core.config import settings
+
+        if not settings.AI_EMBEDDING_URL:
+            return None
+
+        query = f"{protocol.drug_name} {protocol.indication} Phase {protocol.phase} {section}"
+        query_embedding = await embed_text(query)
+        if query_embedding is None:
+            return None
+
+        similar = await find_similar_sections(
+            db, query_embedding, section, exclude_version_ids=current_version_ids
+        )
+        if not similar:
+            return None
+
+        rag_parts = []
+        for i, item in enumerate(similar, 1):
+            snippet = item["text"][:800].strip()
+            sim_pct = int(item["similarity"] * 100)
+            rag_parts.append(f"[Пример {i}, схожесть {sim_pct}%]:\n{snippet}")
+
+        logger.info(
+            "rag_context_retrieved",
+            extra={"section": section, "protocol_id": protocol.id, "count": len(similar)},
+        )
+        return _RAG_SECTION_INTRO + "\n\n".join(rag_parts)
+    except Exception as e:
+        logger.warning("rag_context_failed", extra={"error": str(e), "section": section})
+        return None
 
 
 def _fallback_section(section: str, protocol: Protocol) -> str:
@@ -168,17 +228,35 @@ async def generate_protocol_sections(
     protocol: Protocol,
     sections: Optional[list[str]] = None,
     custom_prompt: str | None = None,
+    db: Optional["AsyncSession"] = None,
+    current_version_ids: Optional[list[str]] = None,
 ) -> dict[str, str]:
     """
     Generate all requested sections concurrently.
     Defaults to MVP 7 sections. Falls back to template on AI error.
+    If db is provided, attempts RAG augmentation for each section.
     """
-    # SAP and ICF are on-demand artifacts — excluded from bulk auto-generation
     _ARTIFACT_SECTIONS = {"sap", "icf"}
     target = sections or MVP_SECTIONS
     target = [s for s in target if s in SECTION_PROMPTS and s not in _ARTIFACT_SECTIONS]
 
-    tasks = [_generate_section(s, protocol, custom_prompt=custom_prompt) for s in target]
+    # Pre-fetch RAG context for all sections concurrently (if db available)
+    rag_contexts: dict[str, str | None] = {}
+    if db is not None:
+        rag_tasks = [
+            _fetch_rag_context(s, protocol, db, current_version_ids)
+            for s in target
+        ]
+        rag_results = await asyncio.gather(*rag_tasks, return_exceptions=True)
+        for s, r in zip(target, rag_results):
+            rag_contexts[s] = r if isinstance(r, str) else None
+    else:
+        rag_contexts = {s: None for s in target}
+
+    tasks = [
+        _generate_section(s, protocol, custom_prompt=custom_prompt, rag_context=rag_contexts.get(s))
+        for s in target
+    ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     content: dict[str, str] = {}
@@ -193,10 +271,21 @@ async def generate_protocol_sections(
 
 
 async def generate_single_section(
-    protocol: Protocol, section_key: str, custom_prompt: str | None = None
+    protocol: Protocol,
+    section_key: str,
+    custom_prompt: str | None = None,
+    db: Optional["AsyncSession"] = None,
+    current_version_ids: Optional[list[str]] = None,
 ) -> str:
-    """FR-03.5 — Regenerate a single section."""
+    """FR-03.5 — Regenerate a single section, optionally with RAG context."""
     if section_key not in SECTION_PROMPTS:
         raise ValueError(f"Unknown section: {section_key}")
-    _, text = await _generate_section(section_key, protocol, custom_prompt=custom_prompt)
+
+    rag_context: str | None = None
+    if db is not None:
+        rag_context = await _fetch_rag_context(section_key, protocol, db, current_version_ids)
+
+    _, text = await _generate_section(
+        section_key, protocol, custom_prompt=custom_prompt, rag_context=rag_context
+    )
     return text
