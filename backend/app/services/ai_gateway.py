@@ -39,7 +39,7 @@ class AIGatewayClient:
         }
         async with httpx.AsyncClient(timeout=settings.AI_GATEWAY_TIMEOUT) as client:
             resp = await client.post(
-                f"{self._base_url}/v1/chat/completions",
+                f"{self._base_url}/chat/completions",
                 headers=self._headers,
                 json=payload,
             )
