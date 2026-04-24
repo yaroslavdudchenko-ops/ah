@@ -1,6 +1,6 @@
 # Функциональные требования
 
-**Version:** 1.2.0 | **Date:** 2026-04-23 | **Status:** Draft  
+**Version:** 1.3.0 | **Date:** 2026-04-24 | **Status:** Active  
 **Author:** System Architect, Business Analyst  
 **Source:** [corecase.md](../corecase.md) §Функциональные требования  
 **Standards:** ALCOA++ (Attributable, Complete, Consistent), SMART (Specific, Measurable)
@@ -145,3 +145,20 @@
 | FR-08.7 | Демо-пользователи: admin/admin123, employee/employee123, auditor/auditor123 (пароли задаются через env vars ADMIN_PASSWORD / EMPLOYEE_PASSWORD / AUDITOR_PASSWORD) | P0 | ✅ |
 | FR-08.8 | Пароли хранятся в хэшированном виде (PBKDF2-HMAC-SHA256, 260 000 итераций) | P0 | ✅ |
 | FR-08.9 | Страница входа (/login) отображает быстрый выбор демо-пользователей, badge с ролью в шапке | P1 | ✅ |
+
+---
+
+## FR-09 Управление жизненным циклом протокола (Governance)
+
+*Источник: требование команды, сессия 8-9 | Приоритет: P1 | Статус: Реализовано*
+
+| ID | Требование | Приоритет | Статус |
+|---|---|---|---|
+| FR-09.1 | 4-eyes принцип: создатель не может одобрить свой протокол (HTTP 403 SELF_APPROVAL_FORBIDDEN); UI скрывает кнопку «Одобрить» для создателя | P1 | v |
+| FR-09.2 | После approved: POST /generate и /sections/.../regenerate возвращают HTTP 423 PROTOCOL_APPROVED | P1 | v |
+| FR-09.3 | POST /protocols/{id}/copy — дублирует черновик без архивации исходного | P1 | v |
+| FR-09.4 | POST /protocols/{id}/fork — создаёт новую версию с архивацией исходного | P1 | v |
+| FR-09.5 | custom_prompt санитируется: max 2000 символов, 18 паттернов инъекций; HTTP 422 PROMPT_INJECTION_DETECTED | P1 | v |
+| FR-09.6 | Статус in_review доступен в UI-фильтрах списка протоколов | P1 | v |
+| FR-09.7 | SAP (Appendix A) и ICF (Appendix B) генерируются по запросу; хранятся в ProtocolVersion.content | P2 | v |
+| FR-09.8 | GET /protocols/{id}/diff?v1=N&v2=N реализован (difflib.unified_diff); UI: color-coded diff панель | P2 | v |

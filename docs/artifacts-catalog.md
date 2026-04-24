@@ -1,6 +1,6 @@
 # Artifacts Catalog
 
-**Version:** 1.2.0 | **Date:** 2026-04-23 | **Status:** Active
+**Version:** 1.3.0 | **Date:** 2026-04-24 | **Status:** Active
 
 Единый реестр всех проектных артефактов с номерами, статусами и ссылками.
 
@@ -15,11 +15,11 @@
 | **A-003** | State Diagram | [docs/state-diagram.md](state-diagram.md) | 1.0.0 | Draft | ✅ |
 | **A-004** | ER Diagram | [docs/er-diagram.md](er-diagram.md) | 1.0.0 | Draft | ✅ |
 | **A-005** | Use Case Diagram | [docs/use-case.md](use-case.md) | 1.0.0 | Draft | ✅ |
-| **A-006** | Functional Requirements | [docs/functional-requirements.md](functional-requirements.md) | 1.2.0 | Active | ✅ |
+| **A-006** | Functional Requirements | [docs/functional-requirements.md](functional-requirements.md) | 1.3.0 | Active | ✅ |
 | **A-007** | Architecture Model (C4) | [ARCHITECTURE.md](../ARCHITECTURE.md) | 1.2.0 | Active | ✅ |
 | **A-008** | UI Mockup & UX Brief | [docs/ui-ux-brief.md](ui-ux-brief.md) | 1.0.0 | Draft | ✅ |
 | **A-009** | API Documentation | [docs/api-spec.md](api-spec.md) | 1.5.0 | Active | ✅ |
-| **A-010** | Release Notes | [RELEASE-NOTES.md](../RELEASE-NOTES.md) | 1.0.0 | Draft | ✅ |
+| **A-010** | Release Notes | [RELEASE-NOTES.md](../RELEASE-NOTES.md) | 3.0.0 | Active | ✅ |
 | **A-011** | Test Plan | [docs/test-plan.md](test-plan.md) | 3.2.0 | Active | ✅ |
 | **A-012** | Business Requirements | [docs/business-requirements.md](business-requirements.md) | 1.0.0 | Draft | ✅ |
 | **A-013** | Manual Test Guide | [docs/manual-test-guide.md](manual-test-guide.md) | 1.0.0 | Active | ✅ |
@@ -45,7 +45,10 @@
 | **S-012** | OpenAPI Spec (generated) | [docs/openapi.json](openapi.json) | — | Pending (Phase 1.5) |
 | **S-013** | RF Protocol Sections Reference | [docs/rf-protocol-sections-reference.md](rf-protocol-sections-reference.md) | 1.0.0 | Active |
 | **S-014** | RF Protocol Comprehensive Guide | [docs/rf-protocol-guide.md](rf-protocol-guide.md) | 1.0.0 | Active |
-| **S-015** | Project Checkpoint | [CHECKPOINT.md](../CHECKPOINT.md) | 6.0.0 | Active |
+| **S-015** | Project Checkpoint | [CHECKPOINT.md](../CHECKPOINT.md) | 9.0.0 | Active |
+| **S-016** | Prompt Injection Guard | [backend/app/core/prompt_guard.py](../backend/app/core/prompt_guard.py) | 1.0.0 | Active |
+| **S-017** | BIOCAD Trials Router | [backend/app/routers/biocad_trials.py](../backend/app/routers/biocad_trials.py) | 1.0.0 | Active |
+| **S-018** | BIOCAD Seed Script | [backend/scripts/seed_from_biocad_api.py](../backend/scripts/seed_from_biocad_api.py) | 1.0.0 | Active |
 
 ---
 

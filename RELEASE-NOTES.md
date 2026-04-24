@@ -1,6 +1,6 @@
 # Release Notes — Synthia AI Protocol Generator
 
-**Version:** 2.0.0 | **Date:** 2026-04-24 | **Status:** Active
+**Version:** 3.0.0 | **Date:** 2026-04-24 | **Status:** Active
 
 ---
 
@@ -75,21 +75,59 @@
 ### Известные ограничения
 - AI Gateway требует подключения к BIOCAD инфраструктуре (недоступен локально без VPN/Ollama)
 - Compliance scores (ICH + РФ НМД) рассчитываются AI — не прошли клиническую валидацию
-- Diff UI реализован как stub (501 Not Implemented)
 - RAG не реализован — запланирован после MVP (pgvector, Вариант 1)
 
 ---
 
-## Backlog — v1.1.0 (Post-MVP)
+## v1.1.0 — Protocol Governance & Artifacts Release
 
-### P2 Features
-- Diff viewer UI (схема готова, stub endpoint есть)
-- SAP (Statistical Analysis Plan) генерация
-- ICF (Informed Consent Form) генерация
+**Дата:** 2026-04-24  
+**Тип:** Feature Release  
+**Статус:** Released
+
+### Новые функции
+
+#### Управление протоколом (Governance)
+- **4-eyes principle**: кнопка «Одобрить» недоступна создателю протокола (FR-09.1); HTTP 403 `SELF_APPROVAL_FORBIDDEN` + UI-дисклеймер
+- **Блокировка генерации после одобрения**: generate и section_regen возвращают HTTP 423 `PROTOCOL_APPROVED` для approved протоколов
+- **Кнопка «Копия»**: `POST /protocols/{id}/copy` дублирует любой протокол в новый черновик без архивации оригинала
+- **Отслеживание создателя**: поле `created_by` в модели `Protocol` + Alembic миграция 004
+
+#### AI-генерация
+- **Custom prompt**: пользователь может добавить собственные клинические инструкции к стандартному промпту (`GenerateRequest.custom_prompt`)
+- **Prompt injection guard** (`prompt_guard.py`): 18 regex-паттернов, санитация перед отправкой в Gateway; HTTP 422 `PROMPT_INJECTION_DETECTED` / `PROMPT_TOO_LONG`
+- **SAP генерация (Appendix A)**: промпт для Statistical Analysis Plan (ITT/PP/Safety, гипотезы, power analysis, missing data handling)
+- **ICF генерация (Appendix B)**: промпт для Informed Consent Form по 61-ФЗ, ICH E6 R2 §4.8, Приказу №353н
+
+#### Версионирование и Diff
+- **Diff UI реализован**: `GET /protocols/{id}/diff?v1=N&v2=N` использует `difflib.unified_diff`; цветная слайд-панель (зелёный/красный/синий) в ProtocolPage
+
+#### Фильтры и UI
+- **Статус «На ревью»** добавлен в фильтры списка протоколов (`in_review`)
+- **Open Issues dropdown**: объединены кнопки «Скачать JSON» / «Скачать CSV» в один dropdown
+
+#### Данные
+- **BIOCAD API seeder**: `scripts/seed_from_biocad_api.py` — 15 протоколов из `api.biocadless.com` (разные терапевтические области и фазы)
+- **`GET /api/v1/biocad-trials`**: proxy-эндпоинт публичного BIOCAD API с фильтрацией по area/phase
+
+### Исправленные баги
+- Повторяющийся текст в субтайтле протокола (truncate + title-атрибут для длинных drug_name/INN)
+
+### Обновление документации
+- `CHECKPOINT.md` v9.0.0
+- `RELEASE-NOTES.md` v3.0.0
+- `docs/functional-requirements.md` v1.3.0 (FR-05, FR-06, FR-09 обновлены)
+- `docs/VERSIONS.md` v1.5.0
+- `docs/artifacts-catalog.md` v1.3.0
+
+---
+
+## Backlog — v1.2.0 (Post-MVP)
 
 ### P3 Integrations
 - RAG: pgvector в текущем PostgreSQL, `InHouse/embeddings-model-1`
 - ct.biocad.ru интеграция: импорт реестра препаратов (ожидает API от BIOCAD IT)
+- Уведомления рецензенту при переходе в `in_review`
 
 ---
 
