@@ -1,6 +1,6 @@
 # Руководство по деплою на Dokploy
 
-**Version:** 1.0.0 | **Date:** 2026-04-23 | **Status:** Draft
+**Version:** 1.2.0 | **Date:** 2026-04-24 | **Status:** Active
 
 ---
 
@@ -90,12 +90,18 @@ API docs (Swagger): `http://localhost:8000/docs`
 2. Добавь переменные из таблицы в разделе 2 (формат `KEY=value`)
 3. Нажми **Save**
 
-Минимально для старта:
+Минимально для старта (скопировать из `.env.example`):
 ```
-OPENROUTER_API_KEY=sk-or-v1-...
-POSTGRES_PASSWORD=your_password
-DATABASE_URL=postgresql+asyncpg://app:your_password@db:5432/protocols
+POSTGRES_PASSWORD=your_strong_password_here
+SECRET_KEY=at_least_32_random_chars_here_abc123
+AI_GATEWAY_URL=https://ai-gateway.internal/v1
+AI_GATEWAY_API_KEY=your-gateway-api-key
+CORS_ORIGINS=["https://your-domain.traefik.me"]
+APP_DOMAIN=your-domain.traefik.me
 ```
+
+> ⚠️ `POSTGRES_PASSWORD` **обязателен** — без него docker compose не запустится (ошибка interpolation на этапе `docker compose up`).
+> Все остальные переменные имеют дефолтные значения, но их **нужно изменить** для production.
 
 ### 6.3 Isolated Deployment (рекомендуется)
 
@@ -130,12 +136,23 @@ DATABASE_URL=postgresql+asyncpg://app:your_password@db:5432/protocols
 
 | Симптом | Причина | Решение |
 |---|---|---|
-| Деплой упал: `required variable not set` | Не задана обязательная переменная | Environment → добавить переменную → Deploy |
+| Dokploy: **`1. error`** / `variable not set` | `POSTGRES_PASSWORD` не задан в Dokploy → docker compose не может подставить значение | Environment → добавить `POSTGRES_PASSWORD` → Save → Deploy |
+| Деплой упал: `required variable not set` | Не задана обязательная переменная | Environment → добавить переменную из `.env.example` → Deploy |
 | Домен не открывается после деплоя | Traefik labels применяются только при деплое | Нажать Deploy после изменения домена |
 | Данные пропали после деплоя | Использовались `./` пути в volumes | Заменить на named volumes (`db-data`) |
 | Backend недоступен с frontend | Nginx proxy config неверный | Проверить `nginx.conf`: `proxy_pass http://backend:8000` |
-| `connection refused` на DB | DB не успела запуститься | Добавить `depends_on: db: condition: service_healthy` |
+| `connection refused` на DB | DB не успела запуститься | `depends_on: db: condition: service_healthy` уже выставлен |
 | Healthcheck не проходит | `/health` возвращает не 200 | Проверить backend: `GET /health` должен вернуть `{"status": "ok"}` |
+| CORS ошибка в браузере | `CORS_ORIGINS` не включает домен приложения | Добавить `CORS_ORIGINS=["https://your-domain.traefik.me"]` |
+| Frontend 502 Bad Gateway | Backend ещё не поднялся при старте frontend | Подождать 30s и перезапустить страницу; frontend не зависит от healthcheck backend |
+
+### 7.1 Порядок проверки при ошибке Dokploy
+
+1. Deployments → View logs → ищи строки `Error` / `failed to solve`
+2. Если ошибка на этапе `docker compose config` — проблема с env vars (см. таблицу выше)
+3. Если ошибка на этапе `docker build` — проблема с Dockerfile (проверь образы и network)
+4. Если контейнер стартует но падает — проблема с runtime (`docker logs <container>` в Terminal)
+5. Если healthcheck не проходит — проверь `GET /health` через Swagger (`/docs`)
 
 ---
 

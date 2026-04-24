@@ -1,6 +1,6 @@
 # A-011: Test Plan — AI Protocol Generator
 
-**Version:** 3.1.0 | **Date:** 2026-04-23 | **Status:** Active  
+**Version:** 3.3.0 | **Date:** 2026-04-24 | **Status:** Active  
 **Artifact ID:** A-011  
 **Стандарт:** IEEE 829, ISTQB Foundation Level
 
@@ -183,21 +183,50 @@
 | ALT-06.3 | Пустой список `secondary_endpoints: []` | Создан успешно, генерация работает | P1 |
 | ALT-06.4 | Drug name со спецсимволами: `BCD-100/Аналог (тест)` | Создан успешно, спецсимволы сохранены | P1 |
 
-### ALT-07: Повторная генерация (версионирование)
+### ALT-07: Версионирование и архивирование (GCP ALCOA++)
 
 | ID | Действие | Ожидаемый результат | Приоритет |
 |---|---|---|---|
-| ALT-07.1 | Сгенерировать протокол дважды | Создано 2 версии (v1, v2), обе доступны через `/versions` | P1 |
-| ALT-07.2 | `GET /protocols/{id}/versions` | Список из 2 версий, упорядочен по version_number | P1 |
+| ALT-07.1 | Сгенерировать протокол | Создана v1; статус протокола `generated`; `isLocked=true` | P0 |
+| ALT-07.2 | `GET /protocols/{id}/versions` | Список версий, последняя `is_archived=false` | P1 |
 | ALT-07.3 | `GET /protocols/{id}/versions/{vid}` | Конкретная версия с полным content | P1 |
+| ALT-07.4 | Проверить UI: кнопка «Генерировать» скрыта если `versions.length > 0` | Кнопка не отображается ни для admin, ни для employee | P0 |
+| ALT-07.5 | Employee: нажать «Создать ревизию» на locked протоколе | Старый протокол → status=archived; новый протокол создан с status=draft; редирект | P0 |
+| ALT-07.6 | `POST /protocols/{id}/fork` | HTTP 201 + новый Protocol; источник получает status=archived, тег Archive | P0 |
+| ALT-07.7 | Фильтр «В архиве» в списке протоколов | Показывает только протоколы со status=archived | P0 |
 
-### ALT-08: Удаление протокола
+### ALT-08: Защита от удаления (GCP compliance)
 
 | ID | Действие | Ожидаемый результат | Приоритет |
 |---|---|---|---|
-| ALT-08.1 | `DELETE /api/v1/protocols/{id}` | HTTP 204, протокол удалён | P0 |
-| ALT-08.2 | `GET /api/v1/protocols/{id}` после удаления | HTTP 404 | P0 |
-| ALT-08.3 | `/versions` удалённого протокола | HTTP 404 (cascade) | P1 |
+| ALT-08.1 | `DELETE /api/v1/protocols/{id}` (любая роль) | HTTP 403 + `{"code": "DELETION_DISABLED", ...}` | P0 |
+| ALT-08.2 | UI: кнопка «Удалить» отсутствует для всех ролей (admin, employee, auditor) | Кнопка не отображается нигде в интерфейсе | P0 |
+| ALT-08.3 | Попытка удаления логируется в аудит-трейл | `GET /audit-log` содержит событие `delete_attempt` | P1 |
+
+### ALT-09: Блокировка редактирования locked протокола
+
+| ID | Действие | Ожидаемый результат | Приоритет |
+|---|---|---|---|
+| ALT-09.1 | `PATCH /protocols/{id}` на locked протоколе (поле title) | HTTP 423 + `{"code": "PROTOCOL_LOCKED", "details": ["title"]}` | P0 |
+| ALT-09.2 | `PATCH /protocols/{id}` на locked протоколе (поле tags) | HTTP 200 ✅ — теги всегда изменяемы | P0 |
+| ALT-09.3 | `PATCH /protocols/{id}` на locked протоколе (поле status) | HTTP 200 ✅ — статус всегда изменяем | P0 |
+
+### ALT-10: Автокомплит при создании протокола
+
+| ID | Действие | Ожидаемый результат | Приоритет |
+|---|---|---|---|
+| ALT-10.1 | `GET /api/v1/protocols/suggestions?field=dosing&q=мг` | HTTP 200 + список строк из БД | P0 |
+| ALT-10.2 | При вводе 2+ символов в поле «МНН» на форме создания | Выпадающий список с вариантами из БД | P0 |
+| ALT-10.3 | `GET /api/v1/protocols/suggestions?field=invalid_field` | HTTP 422 + `{"code": "INVALID_FIELD"}` | P1 |
+| ALT-10.4 | Клик на вариант в выпадающем списке | Значение вставляется в поле, список скрывается | P0 |
+
+### ALT-11: Фильтрация по тегам
+
+| ID | Действие | Ожидаемый результат | Приоритет |
+|---|---|---|---|
+| ALT-11.1 | Открыть фильтры → выбрать тег «онкология» | Список показывает только протоколы с тегом «онкология» | P0 |
+| ALT-11.2 | Клик на тег в карточке протокола в списке | Тег применяется как фильтр, без перехода на страницу протокола | P0 |
+| ALT-11.3 | `GET /api/v1/protocols?tag=онкология` | Возвращает только протоколы с тегом | P0 |
 
 ---
 
@@ -222,15 +251,23 @@
 | AUTH-02.3 | Employee: `PATCH /protocols/{id}` | HTTP 200 ✅ | P0 |
 | AUTH-02.4 | Auditor: `PATCH /protocols/{id}` | HTTP 403 ❌ | P0 |
 
-### AUTH-03: RBAC — Удаление (admin only)
+### AUTH-03: RBAC — Удаление (заблокировано для всех, GCP)
 
 | ID | Действие | Ожидаемый результат | Приоритет |
 |---|---|---|---|
-| AUTH-03.1 | Admin: `DELETE /protocols/{id}` | HTTP 204 ✅ | P0 |
+| AUTH-03.1 | Admin: `DELETE /protocols/{id}` | HTTP 403 ❌ `DELETION_DISABLED` | P0 |
 | AUTH-03.2 | Employee: `DELETE /protocols/{id}` | HTTP 403 ❌ | P0 |
 | AUTH-03.3 | Auditor: `DELETE /protocols/{id}` | HTTP 403 ❌ | P0 |
-| AUTH-03.4 | UI: кнопка удаления скрыта для employee | Кнопка не отображается | P0 |
-| AUTH-03.5 | UI: кнопка удаления скрыта для auditor | Кнопка не отображается | P0 |
+| AUTH-03.4 | UI: кнопка удаления отсутствует для всех ролей | Кнопка не отображается нигде | P0 |
+
+### AUTH-05: RBAC — Fork (создание ревизии)
+
+| ID | Действие | Ожидаемый результат | Приоритет |
+|---|---|---|---|
+| AUTH-05.1 | Employee: `POST /protocols/{id}/fork` | HTTP 201 ✅ + новый протокол | P0 |
+| AUTH-05.2 | Admin: `POST /protocols/{id}/fork` | HTTP 201 ✅ | P0 |
+| AUTH-05.3 | Auditor: `POST /protocols/{id}/fork` | HTTP 403 ❌ | P0 |
+| AUTH-05.4 | UI: кнопка «Создать ревизию» видна только employee на locked протоколе | Кнопка отображается только для роли employee | P0 |
 
 ### AUTH-04: Аудиторский след (Audit Trail)
 

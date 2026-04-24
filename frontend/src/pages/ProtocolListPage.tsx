@@ -282,7 +282,11 @@ export default function ProtocolListPage() {
           <p className="text-xs text-gray-400 mb-2 px-1">Найдено: {protocols.length}</p>
           <div className="card divide-y divide-gray-100">
             {protocols.map(p => (
-              <div key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors group">
+              <Link
+                key={p.id}
+                to={`/protocols/${p.id}`}
+                className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors group cursor-pointer"
+              >
                 <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-brand-50 flex-shrink-0">
                   <FlaskConical className="w-5 h-5 text-brand-600" />
                 </div>
@@ -294,7 +298,10 @@ export default function ProtocolListPage() {
                       {PHASE_LABELS[p.phase] ?? p.phase}
                     </span>
                     {(p.tags ?? []).map(tag => (
-                      <TagBadge key={tag} tag={tag} onClick={() => handleTagClick(tag)} />
+                      <TagBadge
+                        key={tag} tag={tag}
+                        onClick={e => { e.preventDefault(); handleTagClick(tag) }}
+                      />
                     ))}
                   </div>
                   <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
@@ -308,14 +315,9 @@ export default function ProtocolListPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Link
-                    to={`/protocols/${p.id}`}
-                    className="p-1.5 text-gray-400 hover:text-brand-600 rounded-md hover:bg-brand-50 transition-colors"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Link>
+                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-brand-600" />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </>

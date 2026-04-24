@@ -2,7 +2,7 @@ import { tagColor } from './TagInput'
 
 interface Props {
   tag: string
-  onClick?: () => void
+  onClick?: (e: React.MouseEvent) => void
 }
 
 export default function TagBadge({ tag, onClick }: Props) {
