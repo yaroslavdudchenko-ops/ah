@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.database import engine
 from app.models.base import Base
-from app.routers import health, protocols as protocols_module, generate, check, export, templates, auth, audit
+from app.routers import health, protocols as protocols_module, generate, check, export, templates, auth, audit, biocad_trials
 
 logging.basicConfig(
     level=settings.LOG_LEVEL.upper(),
@@ -57,6 +57,7 @@ app.include_router(check.router)
 app.include_router(export.router)
 app.include_router(templates.router)
 app.include_router(audit.router)
+app.include_router(biocad_trials.router)
 
 
 @app.get("/api/v1/info")

@@ -308,7 +308,7 @@ export default function ProtocolListPage() {
                     <Clock className="w-3 h-3" />
                     {fmt(p.updated_at)}
                     <span className="mx-1">·</span>
-                    <span className="font-medium text-gray-500">{p.drug_name}</span>
+                    <span className="font-medium text-gray-500 truncate max-w-[200px]" title={p.drug_name}>{p.drug_name}</span>
                     {p.therapeutic_area && (
                       <><span className="mx-1">·</span><span>{p.therapeutic_area}</span></>
                     )}

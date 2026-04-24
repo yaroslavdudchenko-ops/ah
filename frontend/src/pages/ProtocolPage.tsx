@@ -346,8 +346,12 @@ export default function ProtocolPage() {
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-500 mt-1">
-            {protocol.drug_name} · {protocol.inn} · {protocol.therapeutic_area}
+          <p className="text-sm text-gray-500 mt-1 flex flex-wrap items-center gap-x-1 min-w-0">
+            <span className="truncate max-w-[220px]" title={protocol.drug_name}>{protocol.drug_name}</span>
+            <span>·</span>
+            <span className="truncate max-w-[220px]" title={protocol.inn}>{protocol.inn}</span>
+            <span>·</span>
+            <span>{protocol.therapeutic_area}</span>
           </p>
         </div>
 
