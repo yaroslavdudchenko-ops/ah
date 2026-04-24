@@ -1,6 +1,6 @@
 # REST API Specification
 
-**Version:** 1.5.0 | **Date:** 2026-04-23 | **Status:** Active  
+**Version:** 1.6.0 | **Date:** 2026-04-24 | **Status:** Active  
 **Author:** System Architect  
 **Standards:** CRUDL (полное покрытие операций для каждой сущности), ALCOA++
 
@@ -25,9 +25,14 @@ Authorization: Bearer <access_token>
 | POST /protocols | ✅ | ✅ | ❌ 403 |
 | PATCH /protocols/{id} | ✅ | ✅ | ❌ 403 |
 | DELETE /protocols/{id} | ✅ | ❌ 403 | ❌ 403 |
-| POST /generate | ✅ | ✅ | ❌ 403 |
+| POST /generate (не approved) | ✅ | ✅ | ❌ 403 |
+| POST /generate (approved) | ❌ 423 | ❌ 423 | ❌ 423 |
 | POST /check | ✅ | ✅ | ❌ 403 |
+| POST /protocols/{id}/copy | ✅ | ✅ | ❌ 403 |
+| PATCH …approved (не creator) | ✅ | ✅ | ❌ 403 |
+| PATCH …approved (creator) | ❌ 403 | ❌ 403 | ❌ 403 |
 | GET /audit-log | ✅ | ✅ | ✅ |
+| GET /biocad-trials | ✅ | ✅ | ✅ |
 
 ### AI Provider
 
@@ -272,7 +277,7 @@ grant_type=password&username=admin&password=admin_password
 | `offset` | int | Смещение для пагинации |
 | `search` | string | Поиск по title и drug_name (case-insensitive, contains) |
 | `phase` | string | Фильтр по фазе: `phase_1` \| `phase_2` \| `phase_3` \| `phase_4` |
-| `status` | string | Фильтр по статусу: `draft` \| `generated` \| `approved` |
+| `status` | string | Фильтр по статусу: `draft` \| `generated` \| `in_review` \| `approved` \| `archived` |
 | `therapeutic_area` | string | Фильтр по терапевтической области (contains) |
 | `tag` | string | Фильтр по тегу (точное вхождение в массив) |
 
@@ -363,6 +368,31 @@ grant_type=password&username=admin&password=admin_password
 **Response 204** No Content.
 
 > Операция необратима. Записи в `audit_log` удаляются вместе с протоколом. Перед удалением рекомендуется экспортировать все версии.
+
+---
+
+### POST /protocols/{id}/copy
+Создать копию протокола в статусе `draft`. Исходный протокол и его версии не изменяются.
+
+**Auth:** admin, employee  
+**Response 201** — новый `ProtocolResponse` с `status: "draft"`, теми же метаданными, но без версий контента.
+
+**Ограничения:** `created_by` новой копии = текущий пользователь.
+
+---
+
+### POST /protocols/{id}/fork
+Создать форк (ревизию) протокола. Текущий протокол помечается как `archived`.
+
+**Auth:** admin, employee  
+**Response 201** — новый `ProtocolResponse` в статусе `draft`.
+
+---
+
+### PATCH /protocols/{id} — approve (4-eyes)
+Изменение статуса на `approved`. Недоступно для `created_by` протокола.
+
+**HTTP 403** `SELF_APPROVAL_FORBIDDEN` — если текущий пользователь является создателем.
 
 ---
 
@@ -668,10 +698,52 @@ grant_type=password&username=admin&password=admin_password
 
 ## Утилиты
 
+### GET /biocad-trials
+Proxy открытого реестра клинических исследований БИОКАД (`api.biocadless.com`). Нормализует данные.
+
+**Auth:** любая роль  
+**Query params:**
+- `area` — фильтр по терапевтической области
+- `phase` — фильтр по фазе (`I` / `II` / `III` / `IV`)
+
+**Response 200**
+```json
+{
+  "total": 47,
+  "source": "api.biocadless.com",
+  "records": [
+    {
+      "title": "BCD-100 Phase II Melanoma",
+      "slug": "bcd-100",
+      "phase": "II",
+      "study_status": "Завершено",
+      "recruitment_status": "Набор завершён",
+      "nozology": ["Меланома", "Онкология"]
+    }
+  ]
+}
+```
+
+**HTTP 504** `UPSTREAM_TIMEOUT` — `api.biocadless.com` не ответил за 15 сек.  
+**HTTP 502** `UPSTREAM_ERROR` — ошибка внешнего API.
+
+---
+
+### POST /embeddings/reindex *(P3 — admin only, RAG)*
+Запустить переиндексацию всех версий протоколов для RAG. Генерирует векторные embeddings через AI Gateway.
+
+**Auth:** admin only  
+**Response 202**
+```json
+{ "task_id": "uuid", "queued": 21, "message": "Reindex started in background" }
+```
+
+---
+
 ### GET /health
 Healthcheck для Dokploy.
 
 **Response 200**
 ```json
-{ "status": "ok", "db": "connected", "version": "1.0.0" }
+{ "status": "ok", "db": "connected", "version": "1.1.0" }
 ```

@@ -1,6 +1,6 @@
 # История промптов к AI-агенту
 
-**Version:** 1.0.0 | **Date:** 2026-04-23 | **Status:** Active (пополняется)
+**Version:** 2.0.0 | **Date:** 2026-04-24 | **Status:** Active (пополняется)
 
 Файл фиксирует все значимые промпты, написанные AI-агенту в процессе разработки сервиса.
 Формат: дата · контекст · промпт · результат.
@@ -66,26 +66,134 @@
 
 ## Section Generators
 
-| Секция | Файл промпта | Версия |
-|---|---|---|
-| Введение | [`prompts/section-generators/introduction.md`](prompts/section-generators/introduction.md) | v1.0.0 |
-| Цели | _(pending)_ | — |
-| Дизайн | _(pending)_ | — |
-| Популяция | _(pending)_ | — |
-| Дозирование | _(pending)_ | — |
-| Оценка эффективности | _(pending)_ | — |
-| Оценка безопасности | _(pending)_ | — |
-| Статистика | _(pending)_ | — |
-| Этика | _(pending)_ | — |
+Все промпты реализованы в `backend/app/services/generator.py` (константа `SECTION_PROMPTS`). Документальные копии:
+
+| Секция | Ключ | Файл промпта | Статус |
+|---|---|---|---|
+| Title Page | `title_page` | prompts/section-generators/introduction.md | ✅ |
+| Synopsis | `synopsis` | _(inline в generator.py)_ | ✅ |
+| Introduction & Background | `introduction` | _(inline)_ | ✅ |
+| Study Objectives | `objectives` | _(inline)_ | ✅ |
+| Study Design | `design` | _(inline)_ | ✅ |
+| Study Population | `population` | _(inline)_ | ✅ |
+| Study Treatment (Dosing) | `dosing` | _(inline)_ | ✅ |
+| Efficacy Assessments | `efficacy` | _(inline)_ | ✅ |
+| Safety Assessments | `safety` | _(inline)_ | ✅ |
+| Statistical Analysis | `statistics` | _(inline)_ | ✅ |
+| Ethics | `ethics` | _(inline)_ | ✅ |
+| References | `references` | _(inline)_ | ✅ |
+| **Appendix A: SAP** | `sap` | _(inline, генерируется по запросу)_ | ✅ v1.1.0 |
+| **Appendix B: ICF** | `icf` | _(inline, генерируется по запросу)_ | ✅ v1.1.0 |
+
+### Custom Prompt (v1.1.0)
+
+Пользователь может передать `custom_prompt` через UI (поле «Настроить промпт для AI»). Промпт:
+1. Проходит санитацию через `prompt_guard.py` (18 regex-паттернов инъекций, max 2000 символов)
+2. Если валиден — добавляется к стандартному промпту секции: `{section_prompt}\n\nДополнительные инструкции от клинического специалиста:\n{custom_prompt}`
+3. Если содержит инъекцию — HTTP 422 `PROMPT_INJECTION_DETECTED`
+
+### SAP Prompt (Appendix A) — структура
+
+```
+Сгенерируй ТОЛЬКО Приложение A: Statistical Analysis Plan (SAP).
+Включи:
+1. Цели анализа и статистические гипотезы (нулевая и альтернативная)
+2. Популяции анализа: ITT / PP / Safety Set — с определениями
+3. Первичная конечная точка: метод анализа, уровень значимости (α=0.05), поправки на множественность
+4. Вторичные конечные точки: описательная статистика
+5. Расчёт размера выборки (power analysis): мощность ≥80%
+6. Методы обработки пропущенных данных (MCAR/MAR/MNAR, MI или MMRM)
+7. Промежуточные анализы и правила досрочного останова
+8. Программное обеспечение: SAS 9.4 / R ≥4.3 / Python
+Пометить: DRAFT FOR REVIEW ONLY — SYNTHETIC DATA
+```
+
+### ICF Prompt (Appendix B) — структура
+
+```
+Сгенерируй ТОЛЬКО Приложение B: Informed Consent Form (ICF).
+Включи обязательные разделы по 61-ФЗ и GCP ICH E6 R2 §4.8:
+1. Полное название исследования, спонсор, версия и дата
+2. Введение и цель исследования (простым языком)
+3. Описание процедур: визиты, анализы, продолжительность
+4. Ожидаемые риски и неудобства
+5. Возможная польза для пациента и общества
+6. Альтернативные варианты лечения
+7. Конфиденциальность данных (152-ФЗ, GCP §2.11, GDPR)
+8. Добровольность участия и право выхода
+9. Компенсация при ущербе здоровью
+10. Контакты исследователя, спонсора, независимого ЭК
+11. Строки для подписи пациента/исследователя
+Пометить: DRAFT FOR REVIEW ONLY — SYNTHETIC DATA
+```
 
 ---
 
 ## Validation Prompts
 
-| Тип | Файл промпта | Версия |
-|---|---|---|
-| Консистентность + противоречия | [`prompts/validation-prompts/consistency-check.md`](prompts/validation-prompts/consistency-check.md) | v1.0.0 |
-| GCP compliance | [`prompts/validation-prompts/gcp-compliance.md`](prompts/validation-prompts/gcp-compliance.md) | v1.0.0 |
+| Тип | Файл промпта | Версия | Статус |
+|---|---|---|---|
+| Консистентность + противоречия | [`prompts/validation-prompts/consistency-check.md`](prompts/validation-prompts/consistency-check.md) | v1.0.0 | ✅ |
+| GCP compliance (ICH + РФ НМД) | [`prompts/validation-prompts/gcp-compliance.md`](prompts/validation-prompts/gcp-compliance.md) | v1.2.0 | ✅ |
+
+### Prompt Injection Guard (v1.1.0)
+
+Файл: `backend/app/core/prompt_guard.py`
+
+Паттерны, которые блокируются (HTTP 422):
+- "ignore previous instructions", "forget everything"
+- "act as", "pretend to be", "you are now"
+- `[INST]`, `<<SYS>>`, `<|system|>`, `<|im_start|>` (системные маркеры LLM)
+- "jailbreak", "DAN mode", "developer mode"
+- Попытки раскрыть системный промпт: "what is your system prompt", "repeat above"
+- Внедрение ролей: "you must obey", "new persona"
+
+---
+
+---
+
+## 2026-04-24
+
+### P-005 — Governance: 4-eyes, блокировка, копия, custom prompt
+
+**Контекст:** Сессии 8–9. Требования по управлению жизненным циклом протокола.
+
+**Промпт:**
+> Скорректируй требования: У пользователя должна быть возможность делать повторную генерацию результата драфт протокола с возможностью корректировать промпт. Кнопка «одобрить» не должна быть доступна создателю протокола. Генерации протокола не должны быть доступны после прожатия «одобрить». Для существующих протоколов создать кнопку «копия». Кнопка должна инициировать создание нового протокола с тем же содержимым в статусе драфт.
+
+**Результат:** Реализованы FR-09.1–09.6:
+- `POST /protocols/{id}/copy` + `created_by` в модели (миграция 004)
+- 4-eyes: HTTP 403 `SELF_APPROVAL_FORBIDDEN` + UI дисклеймер
+- Блокировка генерации после approve: HTTP 423 `PROTOCOL_APPROVED`
+- Custom prompt: `GenerateRequest.custom_prompt` + UI блок «Настроить промпт для AI»
+- `prompt_guard.py`: 18 паттернов инъекций, HTTP 422
+
+---
+
+### P-006 — SAP/ICF генерация + Diff UI
+
+**Контекст:** Сессия 9. P2 фичи из backlog.
+
+**Промпт:**
+> P1 — Критические для демо должны быть реализованы. P2 только эти: SAP / ICF генерация — нет промптов и эндпоинтов для Statistical Analysis Plan и Informed Consent Form. Валидация промпта пользователя — custom_prompt принимается без санитизации — нужна проверка на инъекции промптов.
+
+**Результат:**
+- `SECTION_PROMPTS["sap"]` и `SECTION_PROMPTS["icf"]` с детальной структурой (14 секций total)
+- SAP/ICF исключены из bulk генерации — только on-demand через `/generate-artifact`
+- `GET /protocols/{id}/diff?v1=N&v2=N` — `difflib.unified_diff` по секциям
+- Diff UI: слайд-панель с color-coded unified diff (зелёный/красный/синий)
+- `GET /api/v1/biocad-trials` — proxy + 15 протоколов из `api.biocadless.com`
+
+---
+
+### P-007 — RAG архитектура (план)
+
+**Контекст:** Сессия 9. Запрос на старт разработки RAG.
+
+**Промпт:**
+> Стартуй разработку RAG. Сначала расскажи какие были планы на разработку и получи аппрув.
+
+**Результат:** Актуализирован план RAG (3 фазы: Infrastructure → Integration → Background indexing). Обновлена документация: api-spec.md v1.6.0, PROMPTS.md v2.0.0, database-schema.md v1.2.0.
 
 ---
 
