@@ -3,10 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Zap, Download, Shield, CheckCircle2,
   AlertTriangle, Info, FileText, RefreshCcw, RotateCcw, Clock, User, Activity, Tag, Lock, GitBranch,
-  Send, ThumbsUp, MessageSquareWarning, ChevronDown, Copy, SlidersHorizontal, CheckCheck
+  Send, ThumbsUp, MessageSquareWarning, ChevronDown, Copy, SlidersHorizontal, CheckCheck,
+  GitCompare, BarChart3, FileSignature, X
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { api, type Protocol, type ProtocolVersion, type GenerateStatus, type CheckResponse, type AuditEntry } from '../api/client'
+import { api, type Protocol, type ProtocolVersion, type GenerateStatus, type CheckResponse, type AuditEntry, type DiffSection } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import StatusBadge from '../components/StatusBadge'
 import TagInput from '../components/TagInput'
@@ -30,6 +31,9 @@ const SECTION_LABELS: Record<string, string> = {
   statistics:  'Статистический анализ',
   ethics:      'Этические аспекты',
   references:  'Список литературы',
+  // Appendices (on-demand artifacts)
+  sap:         'Appendix A: SAP',
+  icf:         'Appendix B: ICF',
 }
 
 const POLL_INTERVAL = 2500
@@ -94,6 +98,17 @@ export default function ProtocolPage() {
   const issuesDropdownRef = useRef<HTMLDivElement>(null)
   const [error, setError]         = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string | null>(null)
+
+  // Diff state
+  const [showDiffPanel, setShowDiffPanel]   = useState(false)
+  const [diffV1, setDiffV1]               = useState<number | null>(null)
+  const [diffV2, setDiffV2]               = useState<number | null>(null)
+  const [diffResult, setDiffResult]       = useState<DiffSection[] | null>(null)
+  const [diffLoading, setDiffLoading]     = useState(false)
+  const [diffError, setDiffError]         = useState<string | null>(null)
+
+  // SAP/ICF generation state
+  const [generatingArtifact, setGeneratingArtifact] = useState<'sap' | 'icf' | null>(null)
 
   // Protocol is locked once it has AI-generated versions
   const isLocked = versions.length > 0
@@ -308,6 +323,44 @@ export default function ProtocolPage() {
     } catch (e) {
       setError((e as Error).message)
       setForking(false)
+    }
+  }
+
+  const handleLoadDiff = async () => {
+    if (!id || versions.length < 2) return
+    const v1 = diffV1 ?? versions[0].version_number
+    const v2 = diffV2 ?? versions[versions.length - 1].version_number
+    setDiffLoading(true)
+    setDiffError(null)
+    try {
+      const res = await api.getDiff(id, v1, v2)
+      setDiffResult(res.sections)
+    } catch (e) {
+      setDiffError((e as Error).message)
+    } finally {
+      setDiffLoading(false)
+    }
+  }
+
+  const handleGenerateArtifact = async (artifact: 'sap' | 'icf') => {
+    if (!id) return
+    setGeneratingArtifact(artifact)
+    setError(null)
+    try {
+      const { task_id } = await api.regenerateSection(id, artifact)
+      // Poll until done
+      let attempts = 0
+      while (attempts < 60) {
+        await new Promise(r => setTimeout(r, 2500))
+        const st = await api.getGenerateStatus(id, task_id)
+        if (st.status === 'completed' || st.status === 'failed') break
+        attempts++
+      }
+      await loadProtocol()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setGeneratingArtifact(null)
     }
   }
 
@@ -705,6 +758,58 @@ export default function ProtocolPage() {
                         </div>
                       </div>
                   )}
+                  {/* Diff button — available when ≥2 versions exist */}
+                  {versions.length >= 2 && (
+                    <button
+                      onClick={() => { setShowDiffPanel(true); handleLoadDiff() }}
+                      className="mt-2 w-full btn btn-outline text-xs flex items-center justify-center gap-1"
+                    >
+                      <GitCompare className="w-3.5 h-3.5" /> Сравнить версии
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* SAP & ICF artifact generation (Appendix A & B) */}
+              {hasContent && !isReadOnly && (
+                <div className="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
+                  <p className="text-xs font-medium text-gray-500 px-1">Артефакты</p>
+                  {(['sap', 'icf'] as const).map(artifact => {
+                    const exists = activeVersion && artifact in activeVersion.content
+                    const isGenerating = generatingArtifact === artifact
+                    return (
+                      <button
+                        key={artifact}
+                        onClick={() => {
+                          if (!isApproved) handleGenerateArtifact(artifact)
+                          else if (exists) setActiveSection(artifact)
+                        }}
+                        disabled={isApproved && !exists}
+                        className={`w-full text-left text-xs px-2 py-1.5 rounded flex items-center gap-1.5 border transition-colors ${
+                          exists
+                            ? 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                            : isApproved
+                            ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                            : 'border-dashed border-gray-300 text-gray-500 hover:border-indigo-300 hover:text-indigo-600'
+                        }`}
+                      >
+                        {artifact === 'sap'
+                          ? <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+                          : <FileSignature className="w-3.5 h-3.5 shrink-0" />
+                        }
+                        <span className="truncate">
+                          {isGenerating ? 'Генерация...' : exists
+                            ? (artifact === 'sap' ? 'Appendix A: SAP' : 'Appendix B: ICF')
+                            : (artifact === 'sap' ? 'Сгенерировать SAP' : 'Сгенерировать ICF')
+                          }
+                        </span>
+                        {isGenerating && <Spinner size={12} />}
+                        {exists && !isGenerating && !isApproved && (
+                          <RotateCcw className="w-3 h-3 ml-auto shrink-0 opacity-50" />
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -1029,6 +1134,109 @@ function ProtocolAuditPanel({
           </div>
         )}
       </div>
+
+      {/* ── Diff panel (slide-over modal) ─────────────────────────────── */}
+      {showDiffPanel && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="fixed inset-0 bg-black/40" onClick={() => setShowDiffPanel(false)} />
+          <div className="relative ml-auto w-full max-w-3xl bg-white shadow-2xl flex flex-col h-full overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 shrink-0">
+              <div className="flex items-center gap-2">
+                <GitCompare className="w-5 h-5 text-indigo-600" />
+                <h2 className="text-base font-semibold text-gray-800">Сравнение версий</h2>
+              </div>
+              <button onClick={() => setShowDiffPanel(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Version selectors */}
+            <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-100 bg-gray-50 shrink-0 flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 font-medium">Версия A:</label>
+                <select
+                  className="form-input text-xs py-1"
+                  value={diffV1 ?? versions[0]?.version_number ?? ''}
+                  onChange={e => setDiffV1(Number(e.target.value))}
+                >
+                  {versions.map(v => (
+                    <option key={v.id} value={v.version_number}>v{v.version_number}{v.is_archived ? ' [Archive]' : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <span className="text-gray-300 font-bold">→</span>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 font-medium">Версия B:</label>
+                <select
+                  className="form-input text-xs py-1"
+                  value={diffV2 ?? versions[versions.length - 1]?.version_number ?? ''}
+                  onChange={e => setDiffV2(Number(e.target.value))}
+                >
+                  {versions.map(v => (
+                    <option key={v.id} value={v.version_number}>v{v.version_number}{v.is_archived ? ' [Archive]' : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={handleLoadDiff}
+                disabled={diffLoading}
+                className="btn btn-primary text-xs px-3 py-1.5 ml-auto"
+              >
+                {diffLoading ? <Spinner size={14} /> : <><RefreshCcw className="w-3.5 h-3.5" /> Обновить</>}
+              </button>
+            </div>
+
+            {/* Diff body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {diffError && <ErrorAlert message={diffError} />}
+              {diffLoading && <div className="flex justify-center py-12"><Spinner size={28} /></div>}
+              {!diffLoading && diffResult && (
+                diffResult.length === 0 ? (
+                  <p className="text-center text-gray-400 py-8">Нет разделов для сравнения</p>
+                ) : (
+                  diffResult.map(sec => (
+                    <div key={sec.section} className={`rounded-lg border ${sec.changed ? 'border-amber-200' : 'border-gray-100'}`}>
+                      <div className={`flex items-center justify-between px-4 py-2 rounded-t-lg text-sm font-medium ${sec.changed ? 'bg-amber-50 text-amber-800' : 'bg-gray-50 text-gray-500'}`}>
+                        <span>{SECTION_LABELS[sec.section] ?? sec.section}</span>
+                        {sec.changed
+                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">изменён</span>
+                          : <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">без изменений</span>
+                        }
+                      </div>
+                      {sec.changed && (
+                        <div className="p-0 overflow-x-auto">
+                          <pre className="text-[11px] leading-5 font-mono p-4 whitespace-pre-wrap">
+                            {sec.diff.split('\n').map((line, i) => (
+                              <span
+                                key={i}
+                                className={`block ${
+                                  line.startsWith('+') && !line.startsWith('+++')
+                                    ? 'bg-emerald-50 text-emerald-800'
+                                    : line.startsWith('-') && !line.startsWith('---')
+                                    ? 'bg-red-50 text-red-700'
+                                    : line.startsWith('@@')
+                                    ? 'bg-sky-50 text-sky-600'
+                                    : 'text-gray-600'
+                                }`}
+                              >
+                                {line || '\u00A0'}
+                              </span>
+                            ))}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )
+              )}
+              {!diffLoading && !diffResult && !diffError && (
+                <p className="text-center text-gray-400 py-8">Выберите версии и нажмите «Обновить»</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

@@ -21,10 +21,11 @@ const PHASE_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Все статусы' },
-  { value: 'draft',    label: 'Черновик' },
+  { value: 'draft',     label: 'Черновик' },
   { value: 'generated', label: 'Сгенерирован' },
-  { value: 'approved', label: 'Одобрен' },
-  { value: 'archived', label: 'В архиве' },
+  { value: 'in_review', label: 'На ревью' },
+  { value: 'approved',  label: 'Одобрен' },
+  { value: 'archived',  label: 'В архиве' },
 ]
 
 const AREA_OPTIONS = [

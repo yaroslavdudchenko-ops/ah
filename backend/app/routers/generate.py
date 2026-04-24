@@ -12,6 +12,7 @@ from app.schemas.generate import GenerateRequest, GenerateStatus
 from app.schemas.protocol import error_body
 from app.services.generator import generate_protocol_sections, generate_single_section, MVP_SECTIONS
 from app.services.ai_gateway import AIGatewayError
+from app.core.prompt_guard import sanitize_custom_prompt
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/protocols", tags=["generate"])
@@ -40,6 +41,8 @@ async def start_generation(
             ),
         )
 
+    safe_prompt = sanitize_custom_prompt(body.custom_prompt)
+
     task_id = str(uuid.uuid4())
     sections = body.sections or MVP_SECTIONS
 
@@ -54,7 +57,7 @@ async def start_generation(
 
     background_tasks.add_task(
         _run_generation, task_id, protocol_id, sections, body.comment,
-        current_user["username"], current_user["role"], body.custom_prompt,
+        current_user["username"], current_user["role"], safe_prompt,
     )
     return {"task_id": task_id}
 

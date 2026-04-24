@@ -51,6 +51,38 @@ SECTION_PROMPTS: dict[str, str] = {
     "statistics": "Сгенерируй ТОЛЬКО раздел «Statistical Analysis» (Статистический анализ). Включи: гипотезы, размер выборки, популяции анализа (ITT/PP/Safety), методы.",
     "ethics": "Сгенерируй ТОЛЬКО раздел «Ethics» (Этические аспекты). Включи: одобрение ЭК/ИРБ, информированное согласие (61-ФЗ), GCP ЕАЭС соответствие.",
     "references": "Сгенерируй ТОЛЬКО раздел «References» (Список литературы). Включи ≥5 релевантных научных ссылок (ICH руководства, публикации по препарату) в формате Vancouver.",
+    # ── Artifacts (Appendix A & B) ────────────────────────────────────────────
+    "sap": (
+        "Сгенерируй ТОЛЬКО Приложение A: Statistical Analysis Plan (SAP — План статистического анализа). "
+        "Включи следующие разделы:\n"
+        "1. Цели анализа и статистические гипотезы (нулевая и альтернативная)\n"
+        "2. Популяции анализа: ITT (Intent-to-Treat), PP (Per-Protocol), Safety Set — с определениями\n"
+        "3. Первичная конечная точка: метод анализа, уровень значимости (α=0.05), поправки на множественность\n"
+        "4. Вторичные конечные точки: описательная статистика\n"
+        "5. Расчёт размера выборки (power analysis): мощность ≥80%, обоснование\n"
+        "6. Методы обработки пропущенных данных (MCAR/MAR/MNAR, MI или MMRM)\n"
+        "7. Промежуточные анализы и правила досрочного останова (если применимо)\n"
+        "8. Программное обеспечение: SAS 9.4 / R ≥4.3 / Python\n"
+        "Формат: заголовок «Appendix A: Statistical Analysis Plan» + структурированный markdown-текст. "
+        "Пометь: DRAFT FOR REVIEW ONLY — SYNTHETIC DATA."
+    ),
+    "icf": (
+        "Сгенерируй ТОЛЬКО Приложение B: Informed Consent Form Template (ICF — Форма информированного согласия). "
+        "Включи обязательные разделы по 61-ФЗ и GCP ICH E6 R2 §4.8:\n"
+        "1. Полное название исследования, спонсор, версия и дата\n"
+        "2. Введение и цель исследования (простым языком для пациента)\n"
+        "3. Описание процедур исследования: визиты, анализы, продолжительность\n"
+        "4. Ожидаемые риски и неудобства\n"
+        "5. Возможная польза для пациента и общества\n"
+        "6. Альтернативные варианты лечения\n"
+        "7. Конфиденциальность данных (152-ФЗ, GCP §2.11, GDPR при международном участии)\n"
+        "8. Добровольность участия и право выхода без объяснения причин\n"
+        "9. Компенсация и лечение в случае ущерба здоровью\n"
+        "10. Контакты исследователя, спонсора и независимого ЭК\n"
+        "11. Строки для подписи пациента, даты и исследователя\n"
+        "Формат: заголовок «Appendix B: Informed Consent Form» + готовая к заполнению форма. "
+        "Пометь: DRAFT FOR REVIEW ONLY — SYNTHETIC DATA."
+    ),
 }
 
 THERAPEUTIC_AREA_CONTEXT = {
@@ -141,8 +173,10 @@ async def generate_protocol_sections(
     Generate all requested sections concurrently.
     Defaults to MVP 7 sections. Falls back to template on AI error.
     """
+    # SAP and ICF are on-demand artifacts — excluded from bulk auto-generation
+    _ARTIFACT_SECTIONS = {"sap", "icf"}
     target = sections or MVP_SECTIONS
-    target = [s for s in target if s in SECTION_PROMPTS]
+    target = [s for s in target if s in SECTION_PROMPTS and s not in _ARTIFACT_SECTIONS]
 
     tasks = [_generate_section(s, protocol, custom_prompt=custom_prompt) for s in target]
     results = await asyncio.gather(*tasks, return_exceptions=True)

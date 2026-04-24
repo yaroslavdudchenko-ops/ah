@@ -369,10 +369,61 @@ async def diff_versions(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=error_body("NOT_IMPLEMENTED", "Version diff is a P2 feature."),
+    """Compare two version snapshots section-by-section using unified diff."""
+    import difflib
+
+    await _get_or_404(protocol_id, db)
+
+    res1 = await db.execute(
+        select(ProtocolVersion).where(
+            ProtocolVersion.protocol_id == protocol_id,
+            ProtocolVersion.version_number == v1,
+        )
     )
+    ver1 = res1.scalar_one_or_none()
+
+    res2 = await db.execute(
+        select(ProtocolVersion).where(
+            ProtocolVersion.protocol_id == protocol_id,
+            ProtocolVersion.version_number == v2,
+        )
+    )
+    ver2 = res2.scalar_one_or_none()
+
+    if not ver1 or not ver2:
+        raise HTTPException(
+            status_code=404,
+            detail=error_body("VERSION_NOT_FOUND", "One or both versions not found"),
+        )
+
+    content1: dict = ver1.content or {}
+    content2: dict = ver2.content or {}
+    all_sections = sorted(set(list(content1.keys()) + list(content2.keys())))
+
+    sections_diff = []
+    for section in all_sections:
+        lines1 = (content1.get(section) or "").splitlines(keepends=True)
+        lines2 = (content2.get(section) or "").splitlines(keepends=True)
+        diff_lines = list(
+            difflib.unified_diff(
+                lines1, lines2,
+                fromfile=f"v{v1}/{section}",
+                tofile=f"v{v2}/{section}",
+                lineterm="",
+            )
+        )
+        sections_diff.append({
+            "section": section,
+            "changed": bool(diff_lines),
+            "diff": "\n".join(diff_lines),
+        })
+
+    return {
+        "protocol_id": protocol_id,
+        "v1": v1,
+        "v2": v2,
+        "sections": sections_diff,
+    }
 
 
 async def _get_or_404(protocol_id: str, db: AsyncSession) -> Protocol:

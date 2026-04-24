@@ -154,6 +154,10 @@ export const api = {
   // Status transition
   updateStatus: (id: string, status: string) =>
     request<Protocol>(`/protocols/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+
+  // Diff — compare two version snapshots (FR-06)
+  getDiff: (id: string, v1: number, v2: number) =>
+    request<DiffResponse>(`/protocols/${id}/diff?v1=${v1}&v2=${v2}`),
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -241,6 +245,19 @@ export interface AuditEntry {
   performed_by: string
   metadata: Record<string, unknown>
   created_at: string
+}
+
+export interface DiffSection {
+  section: string
+  changed: boolean
+  diff: string
+}
+
+export interface DiffResponse {
+  protocol_id: string
+  v1: number
+  v2: number
+  sections: DiffSection[]
 }
 
 export interface CheckResponse {
