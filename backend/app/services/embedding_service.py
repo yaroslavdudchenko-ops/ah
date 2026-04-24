@@ -55,13 +55,9 @@ async def embed_text(content: str) -> Optional[list[float]]:
         return None
 
     try:
-        base = settings.AI_EMBEDDING_URL.rstrip("/")
-        # AI Gateway uses /api/v2/embeddings (OpenAI-compatible, BIOCAD internal)
-        url = f"{base}/api/v2/embeddings"
-        # verify=False: BIOCAD internal gateway uses corporate CA not present in Alpine container
-        async with httpx.AsyncClient(timeout=settings.AI_EMBEDDING_TIMEOUT, verify=False) as client:
+        async with httpx.AsyncClient(timeout=settings.AI_EMBEDDING_TIMEOUT) as client:
             resp = await client.post(
-                url,
+                f"{settings.AI_EMBEDDING_URL}/v1/embeddings",
                 headers={
                     "Authorization": f"Bearer {settings.AI_GATEWAY_API_KEY}",
                     "Content-Type": "application/json",
