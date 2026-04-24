@@ -1,6 +1,6 @@
 # A-004: ER Diagram
 
-**Version:** 1.0.0 | **Date:** 2026-04-23 | **Status:** Draft  
+**Version:** 1.1.0 | **Date:** 2026-04-24 | **Status:** Active  
 **Artifact ID:** A-004  
 **Связанный документ:** [docs/database-schema.md](database-schema.md) — полная DDL-схема
 
@@ -14,7 +14,7 @@ erDiagram
   templates {
     uuid id PK
     varchar name
-    varchar phase "I | II | III | IV"
+    varchar phase "I | II | III"
     varchar design_type "open_label | randomized | placebo_controlled | double_blind"
     jsonb section_prompts "промпты под каждую секцию"
     timestamp created_at
@@ -23,7 +23,7 @@ erDiagram
   protocols {
     uuid id PK
     varchar title
-    varchar phase "I | II | III | IV"
+    varchar phase "I | II | III"
     text indication
     text population
     text primary_endpoint
@@ -77,12 +77,22 @@ erDiagram
     timestamp created_at
   }
 
+  protocol_embeddings {
+    uuid id PK
+    uuid version_id FK
+    varchar section_key "introduction | design | population | ... | sap | icf"
+    vector embedding "vector(1536) — P3/RAG, pgvector расширение"
+    varchar model "InHouse/embeddings-model-1"
+    timestamp created_at
+  }
+
   templates ||--o{ protocols : "используется в"
   protocols ||--o{ protocol_versions : "имеет версии"
   protocols ||--o{ terminology : "содержит термины"
   protocols ||--o{ open_issues : "содержит вопросы"
   protocols ||--o{ audit_log : "аудируется"
   protocol_versions ||--o{ open_issues : "относится к версии"
+  protocol_versions ||--o{ protocol_embeddings : "P3/RAG — векторные индексы"
 ```
 
 ---

@@ -11,7 +11,6 @@ const PHASES = [
   { value: 'I',   label: 'Фаза I' },
   { value: 'II',  label: 'Фаза II' },
   { value: 'III', label: 'Фаза III' },
-  { value: 'IV',  label: 'Фаза IV' },
 ]
 
 const AREAS = [

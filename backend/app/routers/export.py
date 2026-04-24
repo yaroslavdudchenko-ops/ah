@@ -1,19 +1,22 @@
 import csv
 import io
 import json
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, insert
 from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.protocol import Protocol, ProtocolVersion, OpenIssue
+from app.models.protocol import Protocol, ProtocolVersion, OpenIssue, AuditLog
 from app.schemas.protocol import error_body
 from app.services.export_service import (
     export_markdown, export_html, export_docx,
     CONTENT_TYPES, FILENAMES, ExportFormat,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/protocols", tags=["export"])
 
@@ -72,6 +75,18 @@ async def export_protocol(
             raise HTTPException(status_code=400, detail=error_body("BAD_FORMAT", "Unknown format"))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=error_body("EXPORT_ERROR", str(exc)))
+
+    await db.execute(
+        insert(AuditLog).values(
+            entity_type="protocol",
+            entity_id=protocol_id,
+            action="export",
+            performed_by=current_user.get("sub", "unknown"),
+            metadata={"format": format, "version_id": version.id, "version_number": version.version_number},
+        )
+    )
+    await db.commit()
+    logger.info("export_audit", extra={"protocol_id": protocol_id, "format": format, "user": current_user.get("sub")})
 
     return Response(
         content=data,
