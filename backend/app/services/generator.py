@@ -96,11 +96,15 @@ def _build_context(protocol: Protocol) -> str:
 """.strip()
 
 
-async def _generate_section(section: str, protocol: Protocol) -> tuple[str, str]:
+async def _generate_section(
+    section: str, protocol: Protocol, custom_prompt: str | None = None
+) -> tuple[str, str]:
     """Generate one section. Returns (section_name, text)."""
     section_prompt = SECTION_PROMPTS.get(section, f"Сгенерируй раздел {section}")
     context_str = _build_context(protocol)
     user_prompt = f"{section_prompt}\n\n{context_str}"
+    if custom_prompt:
+        user_prompt += f"\n\nДОПОЛНИТЕЛЬНЫЕ ИНСТРУКЦИИ ОТ ПОЛЬЗОВАТЕЛЯ:\n{custom_prompt}"
 
     try:
         text = await ai_client.complete(
@@ -131,6 +135,7 @@ def _fallback_section(section: str, protocol: Protocol) -> str:
 async def generate_protocol_sections(
     protocol: Protocol,
     sections: Optional[list[str]] = None,
+    custom_prompt: str | None = None,
 ) -> dict[str, str]:
     """
     Generate all requested sections concurrently.
@@ -139,7 +144,7 @@ async def generate_protocol_sections(
     target = sections or MVP_SECTIONS
     target = [s for s in target if s in SECTION_PROMPTS]
 
-    tasks = [_generate_section(s, protocol) for s in target]
+    tasks = [_generate_section(s, protocol, custom_prompt=custom_prompt) for s in target]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     content: dict[str, str] = {}
@@ -153,9 +158,11 @@ async def generate_protocol_sections(
     return content
 
 
-async def generate_single_section(protocol: Protocol, section_key: str) -> str:
+async def generate_single_section(
+    protocol: Protocol, section_key: str, custom_prompt: str | None = None
+) -> str:
     """FR-03.5 — Regenerate a single section."""
     if section_key not in SECTION_PROMPTS:
         raise ValueError(f"Unknown section: {section_key}")
-    _, text = await _generate_section(section_key, protocol)
+    _, text = await _generate_section(section_key, protocol, custom_prompt=custom_prompt)
     return text

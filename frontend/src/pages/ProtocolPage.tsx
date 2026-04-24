@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Zap, Download, Shield, CheckCircle2,
   AlertTriangle, Info, FileText, RefreshCcw, RotateCcw, Clock, User, Activity, Tag, Lock, GitBranch,
-  Send, ThumbsUp, List
+  Send, ThumbsUp, MessageSquareWarning, ChevronDown, Copy, SlidersHorizontal, CheckCheck
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { api, type Protocol, type ProtocolVersion, type GenerateStatus, type CheckResponse, type AuditEntry } from '../api/client'
@@ -85,14 +85,22 @@ export default function ProtocolPage() {
   const [checking, setChecking]   = useState(false)
   const [exporting, setExporting] = useState<string | null>(null)
   const [forking, setForking]             = useState(false)
+  const [copying, setCopying]             = useState(false)
   const [statusUpdating, setStatusUpdating] = useState(false)
+  const [customPrompt, setCustomPrompt]   = useState('')
+  const [showPromptEditor, setShowPromptEditor] = useState(false)
   const [exportingIssues, setExportingIssues] = useState<string | null>(null)
+  const [issuesDropdownOpen, setIssuesDropdownOpen] = useState(false)
+  const issuesDropdownRef = useRef<HTMLDivElement>(null)
   const [error, setError]         = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string | null>(null)
 
   // Protocol is locked once it has AI-generated versions
   const isLocked = versions.length > 0
+  const isApproved = protocol?.status === 'approved'
   const isEmployee = user?.role === 'employee'
+  // Creator cannot approve own protocol (4-eyes GCP principle)
+  const isCreator = protocol?.created_by === user?.username
 
   const loadProtocol = useCallback(async () => {
     if (!id) return
@@ -117,6 +125,17 @@ export default function ProtocolPage() {
   }, [id])
 
   useEffect(() => { loadProtocol() }, [loadProtocol])
+
+  useEffect(() => {
+    if (!issuesDropdownOpen) return
+    const handler = (e: MouseEvent) => {
+      if (issuesDropdownRef.current && !issuesDropdownRef.current.contains(e.target as Node)) {
+        setIssuesDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [issuesDropdownOpen])
 
   useEffect(() => { api.getAllTags().then(setAllTags).catch(() => {}) }, [])
 
@@ -186,7 +205,7 @@ export default function ProtocolPage() {
     setError(null)
     setCheckResult(null)
     try {
-      const res = await api.startGenerate(id, comment || undefined)
+      const res = await api.startGenerate(id, comment || undefined, customPrompt || undefined)
       setComment('')
       setTaskId(res.task_id)
       setGenerateStatus({ task_id: res.task_id, status: 'pending', sections_done: 0, total_sections: 9 })
@@ -264,6 +283,20 @@ export default function ProtocolPage() {
     }
   }
 
+  const handleCopy = async () => {
+    if (!id || !protocol) return
+    if (!confirm(`Создать копию протокола «${protocol.title}» в статусе "Черновик"?\n\nИсходный протокол останется без изменений.`)) return
+    setCopying(true)
+    setError(null)
+    try {
+      const copy = await api.copyProtocol(id)
+      navigate(`/protocols/${copy.id}`)
+    } catch (e) {
+      setError((e as Error).message)
+      setCopying(false)
+    }
+  }
+
   const handleFork = async () => {
     if (!id || !protocol) return
     if (!confirm(`Создать новую редактируемую ревизию протокола «${protocol.title}»?\n\nТекущий протокол будет архивирован.`)) return
@@ -304,6 +337,14 @@ export default function ProtocolPage() {
                 <Lock className="w-3 h-3" /> Заблокирован
               </span>
             )}
+            {isApproved && (
+              <span
+                title="Протокол одобрен. Генерация и редактирование отключены."
+                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200 cursor-default"
+              >
+                <CheckCheck className="w-3 h-3" /> Одобрен
+              </span>
+            )}
           </div>
           <p className="text-sm text-gray-500 mt-1">
             {protocol.drug_name} · {protocol.inn} · {protocol.therapeutic_area}
@@ -311,17 +352,34 @@ export default function ProtocolPage() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {!isReadOnly && !isLocked && (
+          {/* Generate — hidden for approved protocols */}
+          {!isReadOnly && !isLocked && !isApproved && (
             <button onClick={handleGenerate} disabled={generating || checking} className="btn-primary">
               {generating && !regenSection
                 ? <><Spinner size={16} /> Генерация...</>
                 : <><Zap className="w-4 h-4" /> Генерировать</>}
             </button>
           )}
-          {isLocked && isEmployee && (
+          {/* Re-generate button (has content, not approved) */}
+          {!isReadOnly && isLocked && !isApproved && (
+            <button onClick={handleGenerate} disabled={generating || checking} className="btn-secondary flex items-center gap-1.5 !text-violet-700 !border-violet-300 hover:!bg-violet-50">
+              {generating && !regenSection
+                ? <><Spinner size={16} /> Генерация...</>
+                : <><RotateCcw className="w-4 h-4" /> Перегенерировать</>}
+            </button>
+          )}
+          {/* Fork — create revision (archives source) */}
+          {isLocked && isEmployee && !isApproved && (
             <button onClick={handleFork} disabled={forking} className="btn-secondary flex items-center gap-1.5">
               {forking ? <Spinner size={16} /> : <GitBranch className="w-4 h-4" />}
-              Создать ревизию
+              Ревизия
+            </button>
+          )}
+          {/* Copy — creates independent draft without archiving source */}
+          {!isReadOnly && (
+            <button onClick={handleCopy} disabled={copying} className="btn-secondary flex items-center gap-1.5">
+              {copying ? <Spinner size={16} /> : <Copy className="w-4 h-4" />}
+              Копия
             </button>
           )}
 
@@ -339,16 +397,25 @@ export default function ProtocolPage() {
                   На ревью
                 </button>
               )}
-              {protocol.status === 'in_review' && user?.role === 'admin' && (
+              {/* Approve: only admin, only NOT the creator (4-eyes GCP principle) */}
+              {protocol.status === 'in_review' && user?.role === 'admin' && !isCreator && (
                 <button
                   onClick={() => handleStatusUpdate('approved')}
                   disabled={statusUpdating}
-                  title="Одобрить протокол"
+                  title="Одобрить протокол (4-eyes: только другой пользователь)"
                   className="btn-secondary flex items-center gap-1.5 !text-emerald-700 !border-emerald-300 hover:!bg-emerald-50"
                 >
-                  {statusUpdating ? <Spinner size={16} /> : <ThumbsUp className="w-4 h-4" />}
+                  {statusUpdating ? <Spinner size={16} /> : <CheckCheck className="w-4 h-4" />}
                   Одобрить
                 </button>
+              )}
+              {protocol.status === 'in_review' && user?.role === 'admin' && isCreator && (
+                <span
+                  title="Вы создали этот протокол. Одобрение должен выполнить другой администратор (принцип 4-eyes, GCP)."
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-gray-200 text-gray-400 cursor-not-allowed select-none"
+                >
+                  <CheckCheck className="w-4 h-4" /> Одобрить
+                </span>
               )}
             </>
           )}
@@ -375,13 +442,39 @@ export default function ProtocolPage() {
                   </button>
                 ))}
               </div>
-              <div className="flex gap-1" title="Экспорт открытых вопросов (FR-07.4)">
-                {(['json', 'csv'] as const).map(fmt => (
-                  <button key={fmt} onClick={() => handleExportIssues(fmt)} disabled={!!exportingIssues}
-                    className="btn-secondary !px-3 text-xs uppercase !text-amber-700 !border-amber-300 hover:!bg-amber-50">
-                    {exportingIssues === fmt ? <Spinner size={14} /> : <><List className="w-3.5 h-3.5" />вопр.{fmt}</>}
-                  </button>
-                ))}
+              <div className="relative" ref={issuesDropdownRef}>
+                <button
+                  onClick={() => setIssuesDropdownOpen(o => !o)}
+                  disabled={!!exportingIssues}
+                  title="Экспорт открытых вопросов (FR-07.4)"
+                  className="btn-secondary flex items-center gap-1.5 !text-amber-700 !border-amber-300 hover:!bg-amber-50"
+                >
+                  {exportingIssues
+                    ? <Spinner size={14} />
+                    : <MessageSquareWarning className="w-4 h-4" />}
+                  Открытые вопросы
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${issuesDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {issuesDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]">
+                    {(['json', 'csv'] as const).map(fmt => (
+                      <button
+                        key={fmt}
+                        onClick={() => { setIssuesDropdownOpen(false); handleExportIssues(fmt) }}
+                        disabled={!!exportingIssues}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5 text-amber-500" />
+                        Скачать {fmt.toUpperCase()}
+                      </button>
+                    ))}
+                    <div className="border-t border-gray-100 mx-2 mt-1 pt-1">
+                      <p className="px-2 pb-1 text-[10px] text-gray-400 leading-tight">
+                        Открытые замечания GCP-проверки
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -390,21 +483,51 @@ export default function ProtocolPage() {
 
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
 
-      {/* Version comment input */}
-      {!isReadOnly && (
-        <div className="card p-4">
-          <label className="form-label mb-1">Комментарий к версии (опционально)</label>
-          <input
-            className="form-input"
-            placeholder="Описание изменений, например: «Уточнены критерии включения»"
-            value={comment}
-            onChange={e => setComment(e.target.value)}
-            maxLength={1000}
-          />
+      {/* Version comment + custom prompt */}
+      {!isReadOnly && !isApproved && (
+        <div className="card p-4 space-y-3">
+          <div>
+            <label className="form-label mb-1">Комментарий к версии (опционально)</label>
+            <input
+              className="form-input"
+              placeholder="Описание изменений, например: «Уточнены критерии включения»"
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              maxLength={1000}
+            />
+          </div>
+          {/* Custom prompt expander */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowPromptEditor(v => !v)}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-brand-600 transition-colors font-medium"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              {showPromptEditor ? 'Скрыть настройку промпта' : 'Настроить промпт для AI'}
+              <ChevronDown className={`w-3 h-3 transition-transform ${showPromptEditor ? 'rotate-180' : ''}`} />
+            </button>
+            {showPromptEditor && (
+              <div className="mt-2 space-y-1">
+                <label className="form-label text-xs">
+                  Дополнительные инструкции для AI-генерации
+                </label>
+                <textarea
+                  className="form-input text-sm resize-none"
+                  rows={3}
+                  placeholder="Например: «Акцент на педиатрическую популяцию», «Используй более формальный стиль», «Добавь раздел о фармакогенетике»"
+                  value={customPrompt}
+                  onChange={e => setCustomPrompt(e.target.value)}
+                  maxLength={2000}
+                />
+                <p className="text-xs text-gray-400">Эти инструкции будут добавлены к каждому промпту при генерации.</p>
+              </div>
+            )}
+          </div>
           {isLocked && isEmployee && (
-            <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+            <p className="text-xs text-amber-600 flex items-center gap-1">
               <Lock className="w-3 h-3" />
-              Протокол заблокирован. Используйте «Создать ревизию» — текущая версия будет архивирована (GCP ALCOA++).
+              Протокол заблокирован. Используйте «Ревизия» — текущая версия будет архивирована (GCP ALCOA++).
             </p>
           )}
         </div>
@@ -594,7 +717,7 @@ export default function ProtocolPage() {
                       {SECTION_LABELS[activeSection] ?? activeSection}
                     </h2>
                   </div>
-                  {!isReadOnly && (
+                  {!isReadOnly && !isApproved && (
                     <button
                       onClick={() => handleRegenSection(activeSection)}
                       disabled={generating || checking}

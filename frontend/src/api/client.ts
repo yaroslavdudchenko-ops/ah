@@ -74,10 +74,10 @@ export const api = {
   listVersions: (id: string) => request<ProtocolVersion[]>(`/protocols/${id}/versions`),
 
   // Generate
-  startGenerate: (id: string, comment?: string) =>
+  startGenerate: (id: string, comment?: string, customPrompt?: string) =>
     request<{ task_id: string; status: string }>(`/protocols/${id}/generate`, {
       method: 'POST',
-      body: JSON.stringify({ comment }),
+      body: JSON.stringify({ comment, custom_prompt: customPrompt || undefined }),
     }),
   getGenerateStatus: (id: string, taskId: string) =>
     request<GenerateStatus>(`/protocols/${id}/generate/${taskId}`),
@@ -102,9 +102,13 @@ export const api = {
     return request<string[]>(`/protocols/suggestions?${params}`)
   },
 
-  // Fork — create editable revision from locked protocol
+  // Fork — create editable revision from locked protocol (archives source)
   forkProtocol: (id: string) =>
     request<Protocol>(`/protocols/${id}/fork`, { method: 'POST' }),
+
+  // Copy — duplicate protocol as new draft without archiving source
+  copyProtocol: (id: string) =>
+    request<Protocol>(`/protocols/${id}/copy`, { method: 'POST' }),
 
   // Audit Trail
   listAuditLog: (params?: { from_date?: string; to_date?: string; action?: string; performed_by?: string; limit?: number; offset?: number }) => {
@@ -183,6 +187,7 @@ export interface ProtocolCreate {
 export interface Protocol extends ProtocolCreate {
   id: string
   status: string
+  created_by?: string
   created_at: string
   updated_at: string
 }

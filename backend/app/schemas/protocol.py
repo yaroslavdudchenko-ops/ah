@@ -62,6 +62,7 @@ class ProtocolResponse(BaseModel):
     inclusion_criteria: List[str]
     exclusion_criteria: List[str]
     status: str
+    created_by: Optional[str] = None
     tags: List[str] = []
     template_id: Optional[str]
     created_at: datetime

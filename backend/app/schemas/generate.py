@@ -5,6 +5,7 @@ from typing import Optional, List
 class GenerateRequest(BaseModel):
     sections: Optional[List[str]] = None  # None = generate all 7 MVP sections
     comment: Optional[str] = None
+    custom_prompt: Optional[str] = None  # User-provided additional instructions for AI
 
 
 class GenerateStatus(BaseModel):

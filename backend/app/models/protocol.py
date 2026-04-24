@@ -48,6 +48,7 @@ class Protocol(Base):
     inclusion_criteria: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     exclusion_criteria: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="draft")
+    created_by: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     tags: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     template_id: Mapped[Optional[str]] = mapped_column(
         String(36), ForeignKey("templates.id", ondelete="SET NULL"), nullable=True

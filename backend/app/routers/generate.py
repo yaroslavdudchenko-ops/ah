@@ -27,7 +27,19 @@ async def start_generation(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_write),
 ):
+    from app.schemas.protocol import error_body as _eb
     protocol = await _get_protocol_or_404(protocol_id, db)
+
+    if protocol.status == "approved":
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail=_eb(
+                "PROTOCOL_APPROVED",
+                "Generation is disabled for approved protocols. "
+                "Create a copy or fork to start a new revision.",
+            ),
+        )
+
     task_id = str(uuid.uuid4())
     sections = body.sections or MVP_SECTIONS
 
@@ -42,7 +54,7 @@ async def start_generation(
 
     background_tasks.add_task(
         _run_generation, task_id, protocol_id, sections, body.comment,
-        current_user["username"], current_user["role"],
+        current_user["username"], current_user["role"], body.custom_prompt,
     )
     return {"task_id": task_id}
 
@@ -71,7 +83,17 @@ async def regenerate_section(
     current_user: dict = Depends(require_write),
 ):
     """FR-03.5 — Regenerate a single section without recreating the full protocol."""
+    from app.schemas.protocol import error_body as _eb
     protocol = await _get_protocol_or_404(protocol_id, db)
+
+    if protocol.status == "approved":
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail=_eb(
+                "PROTOCOL_APPROVED",
+                "Regeneration is disabled for approved protocols.",
+            ),
+        )
 
     # Check latest version exists
     ver_result = await db.execute(
@@ -103,6 +125,7 @@ async def regenerate_section(
 async def _run_generation(
     task_id: str, protocol_id: str, sections: list[str],
     comment: str | None, username: str, role: str,
+    custom_prompt: str | None = None,
 ) -> None:
     _tasks[task_id]["status"] = "running"
     t0 = time.monotonic()
@@ -114,7 +137,7 @@ async def _run_generation(
                 _tasks[task_id].update({"status": "failed", "error": "Protocol not found"})
                 return
 
-            content = await generate_protocol_sections(protocol, sections)
+            content = await generate_protocol_sections(protocol, sections, custom_prompt=custom_prompt)
             duration_ms = int((time.monotonic() - t0) * 1000)
 
             from sqlalchemy import func as sqlfunc, update as sqla_update

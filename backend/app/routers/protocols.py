@@ -51,7 +51,7 @@ async def create_protocol(
     current_user: dict = Depends(require_write),
 ):
     protocol_id = str(uuid.uuid4())
-    protocol = Protocol(id=protocol_id, **body.model_dump())
+    protocol = Protocol(id=protocol_id, created_by=current_user["username"], **body.model_dump())
     db.add(protocol)
     db.add(AuditLog(
         entity_type="protocol", entity_id=protocol_id,
@@ -164,6 +164,18 @@ async def update_protocol(
                     "Protocol is locked for editing once AI content has been generated. "
                     "Core study design fields cannot be changed. Only tags and status are mutable.",
                     details=sorted(locked_fields_in_request),
+                ),
+            )
+
+    # Approve cannot be done by the protocol creator (4-eyes principle)
+    if update_data.get("status") == "approved":
+        if protocol.created_by and protocol.created_by == current_user["username"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=error_body(
+                    "SELF_APPROVAL_FORBIDDEN",
+                    "The protocol creator cannot approve their own protocol. "
+                    "A second authorized user must perform the approval (4-eyes principle, GCP).",
                 ),
             )
 
@@ -301,6 +313,52 @@ async def fork_protocol(
     await db.flush()
     await db.refresh(fork)
     return fork
+
+
+@router.post("/{protocol_id}/copy", response_model=ProtocolResponse, status_code=status.HTTP_201_CREATED)
+async def copy_protocol(
+    protocol_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_write),
+):
+    """Create a draft copy of any protocol without archiving the source.
+
+    Unlike /fork, the source protocol is NOT archived — this is a pure duplication
+    for creating a new independent draft with the same study design metadata.
+    """
+    source = await _get_or_404(protocol_id, db)
+
+    copy_id = str(uuid.uuid4())
+    copy = Protocol(
+        id=copy_id,
+        title=f"Копия: {source.title}",
+        drug_name=source.drug_name,
+        inn=source.inn,
+        phase=source.phase,
+        therapeutic_area=source.therapeutic_area,
+        indication=source.indication,
+        population=source.population,
+        primary_endpoint=source.primary_endpoint,
+        secondary_endpoints=list(source.secondary_endpoints or []),
+        duration_weeks=source.duration_weeks,
+        dosing=source.dosing,
+        inclusion_criteria=list(source.inclusion_criteria or []),
+        exclusion_criteria=list(source.exclusion_criteria or []),
+        status="draft",
+        tags=list(source.tags or []),
+        template_id=source.template_id,
+        created_by=current_user["username"],
+    )
+    db.add(copy)
+    db.add(AuditLog(
+        entity_type="protocol", entity_id=copy_id,
+        action="create",
+        performed_by=current_user["username"],
+        metadata_={"role": current_user["role"], "copied_from": protocol_id, "title": copy.title},
+    ))
+    await db.flush()
+    await db.refresh(copy)
+    return copy
 
 
 @router.get("/{protocol_id}/diff")
