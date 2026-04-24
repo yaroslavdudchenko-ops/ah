@@ -59,23 +59,24 @@ async def test_update_protocol(client):
 
 
 @pytest.mark.asyncio
-async def test_delete_protocol(client):
-    """ALT-08.1: DELETE returns 204."""
+async def test_delete_protocol_blocked(client):
+    """ALT-08.1: DELETE always returns 403 DELETION_DISABLED (GCP/ALCOA++ policy)."""
     create = await client.post("/api/v1/protocols", json=bcd100_payload())
     pid = create.json()["id"]
     resp = await client.delete(f"/api/v1/protocols/{pid}")
-    assert resp.status_code == 204
+    assert resp.status_code == 403
+    assert resp.json()["detail"]["error"]["code"] == "DELETION_DISABLED"
 
 
 @pytest.mark.asyncio
-async def test_get_deleted_protocol_returns_404(client):
-    """ALT-08.2: GET after delete → 404."""
+async def test_protocol_still_exists_after_delete_attempt(client):
+    """ALT-08.2: GET after DELETE attempt → 200 (protocol retained per ALCOA++)."""
     create = await client.post("/api/v1/protocols", json=bcd100_payload())
     pid = create.json()["id"]
     await client.delete(f"/api/v1/protocols/{pid}")
     resp = await client.get(f"/api/v1/protocols/{pid}")
-    assert resp.status_code == 404
-    assert resp.json()["detail"]["error"]["code"] == "PROTOCOL_NOT_FOUND"
+    assert resp.status_code == 200
+    assert resp.json()["id"] == pid
 
 
 # ─── Validation / Negative ────────────────────────────────────────────────────

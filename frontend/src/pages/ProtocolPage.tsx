@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, Zap, Download, Shield, CheckCircle2,
-  AlertTriangle, Info, FileText, RefreshCcw, RotateCcw, Clock, User, Activity, Tag, Lock, GitBranch
+  AlertTriangle, Info, FileText, RefreshCcw, RotateCcw, Clock, User, Activity, Tag, Lock, GitBranch,
+  Send, ThumbsUp, List
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { api, type Protocol, type ProtocolVersion, type GenerateStatus, type CheckResponse, type AuditEntry } from '../api/client'
@@ -83,7 +84,9 @@ export default function ProtocolPage() {
   const [generating, setGenerating] = useState(false)
   const [checking, setChecking]   = useState(false)
   const [exporting, setExporting] = useState<string | null>(null)
-  const [forking, setForking]     = useState(false)
+  const [forking, setForking]             = useState(false)
+  const [statusUpdating, setStatusUpdating] = useState(false)
+  const [exportingIssues, setExportingIssues] = useState<string | null>(null)
   const [error, setError]         = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string | null>(null)
 
@@ -235,6 +238,32 @@ export default function ProtocolPage() {
     }
   }
 
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!id || !protocol) return
+    setStatusUpdating(true)
+    setError(null)
+    try {
+      const updated = await api.updateStatus(id, newStatus)
+      setProtocol(updated)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setStatusUpdating(false)
+    }
+  }
+
+  const handleExportIssues = async (format: 'json' | 'csv') => {
+    if (!id) return
+    setExportingIssues(format)
+    try {
+      await api.exportOpenIssues(id, format)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setExportingIssues(null)
+    }
+  }
+
   const handleFork = async () => {
     if (!id || !protocol) return
     if (!confirm(`Создать новую редактируемую ревизию протокола «${protocol.title}»?\n\nТекущий протокол будет архивирован.`)) return
@@ -296,6 +325,34 @@ export default function ProtocolPage() {
             </button>
           )}
 
+          {/* Status transition buttons */}
+          {!isReadOnly && hasContent && (
+            <>
+              {protocol.status === 'draft' && (
+                <button
+                  onClick={() => handleStatusUpdate('in_review')}
+                  disabled={statusUpdating}
+                  title="Отправить протокол на рецензирование"
+                  className="btn-secondary flex items-center gap-1.5 !text-sky-700 !border-sky-300 hover:!bg-sky-50"
+                >
+                  {statusUpdating ? <Spinner size={16} /> : <Send className="w-4 h-4" />}
+                  На ревью
+                </button>
+              )}
+              {protocol.status === 'in_review' && user?.role === 'admin' && (
+                <button
+                  onClick={() => handleStatusUpdate('approved')}
+                  disabled={statusUpdating}
+                  title="Одобрить протокол"
+                  className="btn-secondary flex items-center gap-1.5 !text-emerald-700 !border-emerald-300 hover:!bg-emerald-50"
+                >
+                  {statusUpdating ? <Spinner size={16} /> : <ThumbsUp className="w-4 h-4" />}
+                  Одобрить
+                </button>
+              )}
+            </>
+          )}
+
           {hasContent && (
             <>
               <button
@@ -315,6 +372,14 @@ export default function ProtocolPage() {
                   <button key={fmt} onClick={() => handleExport(fmt)} disabled={!!exporting}
                     className="btn-secondary !px-3 text-xs uppercase">
                     {exporting === fmt ? <Spinner size={14} /> : <><Download className="w-3.5 h-3.5" />{fmt}</>}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-1" title="Экспорт открытых вопросов (FR-07.4)">
+                {(['json', 'csv'] as const).map(fmt => (
+                  <button key={fmt} onClick={() => handleExportIssues(fmt)} disabled={!!exportingIssues}
+                    className="btn-secondary !px-3 text-xs uppercase !text-amber-700 !border-amber-300 hover:!bg-amber-50">
+                    {exportingIssues === fmt ? <Spinner size={14} /> : <><List className="w-3.5 h-3.5" />вопр.{fmt}</>}
                   </button>
                 ))}
               </div>

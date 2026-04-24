@@ -757,16 +757,17 @@ class TestSmoke:
         assert patch_resp.json()["dosing"] == new_dosing
 
     @pytest.mark.asyncio
-    async def test_smoke_delete_removes_protocol(self, client):
-        """SMOKE-10: DELETE → 204, затем GET → 404."""
+    async def test_smoke_delete_blocked(self, client):
+        """SMOKE-10: DELETE → 403 DELETION_DISABLED, затем GET → 200 (протокол сохранён)."""
         resp = await client.post("/api/v1/protocols", json=payload_bcd057_nsclc())
         proto_id = resp.json()["id"]
 
         del_resp = await client.delete(f"/api/v1/protocols/{proto_id}")
-        assert del_resp.status_code == 204
+        assert del_resp.status_code == 403
+        assert del_resp.json()["detail"]["error"]["code"] == "DELETION_DISABLED"
 
         get_resp = await client.get(f"/api/v1/protocols/{proto_id}")
-        assert get_resp.status_code == 404
+        assert get_resp.status_code == 200
 
     @pytest.mark.asyncio
     async def test_smoke_ai_gateway_failure_503(self, client, mock_ai_gateway_fail):

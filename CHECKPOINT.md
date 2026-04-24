@@ -1,8 +1,8 @@
 # CHECKPOINT — Восстановление контекста
 
 **Создан:** 2026-04-23  
-**Версия:** 7.0.0  
-**Обновлён:** 2026-04-24 (сессия 7 — Deploy prep, docs audit, METRICS.md, GitLab push, Dockerfile fix)  
+**Версия:** 8.0.0  
+**Обновлён:** 2026-04-24 (сессия 8 — Доработки: fix tests DELETE/PATCH-lock, Open Issues export FR-07.4, section_regen архивирует версию, Status transition UI)  
 **Назначение:** Полное восстановление контекста после очистки чата
 
 ---

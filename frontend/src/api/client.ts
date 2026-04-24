@@ -135,6 +135,21 @@ export const api = {
     a.click()
     URL.revokeObjectURL(url)
   },
+
+  // Open Issues Export (FR-07.4)
+  exportOpenIssues: async (id: string, format: 'json' | 'csv') => {
+    const blob = await requestBlob(`/protocols/${id}/open-issues/export?format=${format}`)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = format === 'csv' ? 'open_issues.csv' : 'open_issues.json'
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+
+  // Status transition
+  updateStatus: (id: string, status: string) =>
+    request<Protocol>(`/protocols/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────

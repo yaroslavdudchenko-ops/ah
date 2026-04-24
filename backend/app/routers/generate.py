@@ -197,18 +197,27 @@ async def _run_section_regen(
             new_content = dict(latest.content)
             new_content[section_key] = new_text
 
-            from sqlalchemy import func as sqlfunc
+            from sqlalchemy import func as sqlfunc, update as sqla_update
             count_result = await db.execute(
                 select(sqlfunc.count()).select_from(ProtocolVersion).where(
                     ProtocolVersion.protocol_id == protocol_id
                 )
             )
             count = count_result.scalar() or 0
+
+            # Archive all previous versions before creating the new one
+            await db.execute(
+                sqla_update(ProtocolVersion)
+                .where(ProtocolVersion.protocol_id == protocol_id)
+                .values(is_archived=True)
+            )
+
             version = ProtocolVersion(
                 protocol_id=protocol_id,
                 version_number=count + 1,
                 content=new_content,
                 comment=f"Regenerated section: {section_key}",
+                is_archived=False,
             )
             db.add(version)
             db.add(AuditLog(

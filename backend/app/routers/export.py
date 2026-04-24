@@ -1,3 +1,6 @@
+import csv
+import io
+import json
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -5,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.protocol import Protocol, ProtocolVersion
+from app.models.protocol import Protocol, ProtocolVersion, OpenIssue
 from app.schemas.protocol import error_body
 from app.services.export_service import (
     export_markdown, export_html, export_docx,
@@ -74,4 +77,83 @@ async def export_protocol(
         content=data,
         media_type=CONTENT_TYPES[format],
         headers={"Content-Disposition": f'attachment; filename="{FILENAMES[format]}"'},
+    )
+
+
+@router.get("/{protocol_id}/open-issues/export")
+async def export_open_issues(
+    protocol_id: str,
+    format: str = Query("json", description="json | csv"),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """FR-07.4 — Export open issues list as JSON or CSV."""
+    proto_result = await db.execute(select(Protocol).where(Protocol.id == protocol_id))
+    protocol = proto_result.scalar_one_or_none()
+    if not protocol:
+        raise HTTPException(
+            status_code=404,
+            detail=error_body("PROTOCOL_NOT_FOUND", f"Protocol {protocol_id} not found"),
+        )
+
+    issues_result = await db.execute(
+        select(OpenIssue)
+        .where(OpenIssue.protocol_id == protocol_id)
+        .order_by(OpenIssue.created_at)
+    )
+    issues = issues_result.scalars().all()
+
+    if format == "json":
+        payload = {
+            "protocol_id": protocol_id,
+            "protocol_title": protocol.title,
+            "drug_name": protocol.drug_name,
+            "generated_at": None,
+            "issues": [
+                {
+                    "id": i.id,
+                    "section": i.section,
+                    "issue_type": i.issue_type,
+                    "severity": i.severity,
+                    "description": i.description,
+                    "suggestion": i.suggestion,
+                    "resolved": i.resolved,
+                    "created_at": i.created_at.isoformat() if i.created_at else None,
+                }
+                for i in issues
+            ],
+        }
+        return Response(
+            content=json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"),
+            media_type="application/json; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="open_issues.json"'},
+        )
+
+    if format == "csv":
+        buf = io.StringIO()
+        writer = csv.DictWriter(
+            buf,
+            fieldnames=["id", "section", "issue_type", "severity", "description", "suggestion", "resolved", "created_at"],
+        )
+        writer.writeheader()
+        for i in issues:
+            writer.writerow({
+                "id": i.id,
+                "section": i.section,
+                "issue_type": i.issue_type,
+                "severity": i.severity,
+                "description": i.description,
+                "suggestion": i.suggestion or "",
+                "resolved": i.resolved,
+                "created_at": i.created_at.isoformat() if i.created_at else "",
+            })
+        return Response(
+            content=buf.getvalue().encode("utf-8-sig"),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="open_issues.csv"'},
+        )
+
+    raise HTTPException(
+        status_code=400,
+        detail=error_body("BAD_FORMAT", "Supported formats: json, csv"),
     )
