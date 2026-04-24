@@ -117,18 +117,28 @@ async def _run_generation(
             content = await generate_protocol_sections(protocol, sections)
             duration_ms = int((time.monotonic() - t0) * 1000)
 
-            from sqlalchemy import func as sqlfunc
+            from sqlalchemy import func as sqlfunc, update as sqla_update
             count_result = await db.execute(
                 select(sqlfunc.count()).select_from(ProtocolVersion).where(
                     ProtocolVersion.protocol_id == protocol_id
                 )
             )
             count = count_result.scalar() or 0
+
+            # Archive all previous versions before creating the new one
+            if count > 0:
+                await db.execute(
+                    sqla_update(ProtocolVersion)
+                    .where(ProtocolVersion.protocol_id == protocol_id)
+                    .values(is_archived=True)
+                )
+
             version = ProtocolVersion(
                 protocol_id=protocol_id,
                 version_number=count + 1,
                 content=content,
                 comment=comment or f"AI-generated v{count + 1}",
+                is_archived=False,
             )
             db.add(version)
             db.add(AuditLog(

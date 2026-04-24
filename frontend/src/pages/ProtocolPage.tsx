@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  ChevronLeft, Zap, Download, Shield, Trash2, CheckCircle2,
-  AlertTriangle, Info, FileText, RefreshCcw, RotateCcw, Clock, User, Activity, Tag
+  ChevronLeft, Zap, Download, Shield, CheckCircle2,
+  AlertTriangle, Info, FileText, RefreshCcw, RotateCcw, Clock, User, Activity, Tag, Lock
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { api, type Protocol, type ProtocolVersion, type GenerateStatus, type CheckResponse, type AuditEntry } from '../api/client'
@@ -58,8 +58,7 @@ type PageTab = 'content' | 'audit'
 export default function ProtocolPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { isReadOnly, user } = useAuth()
-  const canDelete = user?.role === 'admin'
+  const { isReadOnly } = useAuth()
 
   const [tab, setTab] = useState<PageTab>('content')
   const [protocol, setProtocol]           = useState<Protocol | null>(null)
@@ -84,9 +83,11 @@ export default function ProtocolPage() {
   const [generating, setGenerating] = useState(false)
   const [checking, setChecking]   = useState(false)
   const [exporting, setExporting] = useState<string | null>(null)
-  const [deleting, setDeleting]   = useState(false)
   const [error, setError]         = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string | null>(null)
+
+  // Protocol is locked once it has AI-generated versions
+  const isLocked = versions.length > 0
 
   const loadProtocol = useCallback(async () => {
     if (!id) return
@@ -232,19 +233,6 @@ export default function ProtocolPage() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!id || !protocol) return
-    if (!confirm(`Удалить протокол «${protocol.title}»? Это действие нельзя отменить.`)) return
-    setDeleting(true)
-    try {
-      await api.deleteProtocol(id)
-      navigate('/protocols')
-    } catch (e) {
-      setError((e as Error).message)
-      setDeleting(false)
-    }
-  }
-
   if (loading) return <div className="flex justify-center py-24"><Spinner size={36} /></div>
   if (!protocol) return <div className="py-16"><ErrorAlert message="Протокол не найден" /></div>
 
@@ -263,6 +251,14 @@ export default function ProtocolPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl font-bold text-gray-900">{protocol.title}</h1>
             <StatusBadge status={protocol.status} />
+            {isLocked && (
+              <span
+                title="Протокол заблокирован для редактирования. Параметры дизайна исследования неизменны после AI-генерации (GCP/ALCOA++)."
+                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md border bg-amber-50 text-amber-700 border-amber-200 cursor-default"
+              >
+                <Lock className="w-3 h-3" /> Заблокирован
+              </span>
+            )}
           </div>
           <p className="text-sm text-gray-500 mt-1">
             {protocol.drug_name} · {protocol.inn} · {protocol.therapeutic_area}
@@ -274,7 +270,7 @@ export default function ProtocolPage() {
             <button onClick={handleGenerate} disabled={generating || checking} className="btn-primary">
               {generating && !regenSection
                 ? <><Spinner size={16} /> Генерация...</>
-                : <><Zap className="w-4 h-4" /> Генерировать</>}
+                : <><Zap className="w-4 h-4" /> {isLocked ? 'Перегенерировать' : 'Генерировать'}</>}
             </button>
           )}
 
@@ -302,12 +298,6 @@ export default function ProtocolPage() {
               </div>
             </>
           )}
-
-          {canDelete && (
-            <button onClick={handleDelete} disabled={deleting} className="btn-danger !px-3">
-              {deleting ? <Spinner size={16} /> : <Trash2 className="w-4 h-4" />}
-            </button>
-          )}
         </div>
       </div>
 
@@ -319,11 +309,17 @@ export default function ProtocolPage() {
           <label className="form-label mb-1">Комментарий к версии (опционально)</label>
           <input
             className="form-input"
-            placeholder="Описание изменений, например: «Обновлены критерии включения»"
+            placeholder="Описание изменений, например: «Уточнены критерии включения»"
             value={comment}
             onChange={e => setComment(e.target.value)}
             maxLength={1000}
           />
+          {isLocked && (
+            <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+              <Lock className="w-3 h-3" />
+              При перегенерации предыдущая версия будет автоматически архивирована (GCP ALCOA++).
+            </p>
+          )}
         </div>
       )}
 
@@ -467,10 +463,17 @@ export default function ProtocolPage() {
                   >
                     {versions.map(v => (
                       <option key={v.id} value={v.id}>
-                        v{v.version_number}{v.comment ? ` · ${v.comment.slice(0, 20)}` : ''}
+                        v{v.version_number}{v.is_archived ? ' [Archive]' : ' [Active]'}{v.comment ? ` · ${v.comment.slice(0, 18)}` : ''}
                       </option>
                     ))}
                   </select>
+                  {activeVersion.is_archived && (
+                    <div className="flex items-center gap-1 mt-1.5 px-1">
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border bg-gray-50 text-gray-500 border-gray-200">
+                        Archive — версия заменена новой
+                      </span>
+                    </div>
+                  )}
                   {activeVersion.comment && (
                     <p className="text-xs text-gray-400 mt-1 px-1 italic">{activeVersion.comment}</p>
                   )}

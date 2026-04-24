@@ -183,6 +183,7 @@ export interface ProtocolVersion {
   comment?: string
   compliance_score?: number
   generated_by: string
+  is_archived: boolean
   created_at: string
 }
 

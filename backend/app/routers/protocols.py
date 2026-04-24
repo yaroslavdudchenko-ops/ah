@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from typing import Optional
 from app.core.database import get_db
 from app.core.security import get_current_user, require_write, require_delete
@@ -10,6 +10,15 @@ from app.schemas.protocol import (
     ProtocolCreate, ProtocolUpdate, ProtocolResponse, ProtocolListItem,
     VersionResponse, error_body,
 )
+
+# Fields that remain mutable even on locked (versioned) protocols
+_ALWAYS_MUTABLE = {"tags", "status"}
+# Fields that lock the protocol for editing once it has AI-generated versions
+_LOCKED_FIELDS = {
+    "title", "drug_name", "inn", "phase", "therapeutic_area", "indication",
+    "population", "primary_endpoint", "secondary_endpoints", "duration_weeks",
+    "dosing", "inclusion_criteria", "exclusion_criteria",
+}
 
 router = APIRouter(prefix="/api/v1/protocols", tags=["protocols"])
 tags_router = APIRouter(prefix="/api/v1", tags=["tags"])
@@ -99,6 +108,27 @@ async def update_protocol(
 ):
     protocol = await _get_or_404(protocol_id, db)
     update_data = body.model_dump(exclude_unset=True)
+
+    # Check if protocol is locked (has at least one AI-generated version)
+    locked_fields_in_request = set(update_data.keys()) & _LOCKED_FIELDS
+    if locked_fields_in_request:
+        version_count_result = await db.execute(
+            select(func.count()).select_from(ProtocolVersion).where(
+                ProtocolVersion.protocol_id == protocol_id
+            )
+        )
+        version_count = version_count_result.scalar() or 0
+        if version_count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_423_LOCKED,
+                detail=error_body(
+                    "PROTOCOL_LOCKED",
+                    "Protocol is locked for editing once AI content has been generated. "
+                    "Core study design fields cannot be changed. Only tags and status are mutable.",
+                    details=sorted(locked_fields_in_request),
+                ),
+            )
+
     for k, v in update_data.items():
         setattr(protocol, k, v)
     db.add(AuditLog(
@@ -112,20 +142,30 @@ async def update_protocol(
     return protocol
 
 
-@router.delete("/{protocol_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{protocol_id}", status_code=status.HTTP_403_FORBIDDEN)
 async def delete_protocol(
     protocol_id: str,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_delete),
 ):
-    protocol = await _get_or_404(protocol_id, db)
+    """Deletion is permanently disabled for GCP/audit compliance.
+    Protocols are retained for the full audit trail. Use status='retired' to deactivate."""
+    await _get_or_404(protocol_id, db)
     db.add(AuditLog(
         entity_type="protocol", entity_id=protocol_id,
-        action="delete",
+        action="delete_attempt",
         performed_by=current_user["username"],
-        metadata_={"title": protocol.title, "role": current_user["role"]},
+        metadata_={"role": current_user["role"], "result": "blocked_by_policy"},
     ))
-    await db.delete(protocol)
+    await db.flush()
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=error_body(
+            "DELETION_DISABLED",
+            "Protocol deletion is disabled for GCP/ALCOA++ audit compliance. "
+            "Protocols are retained indefinitely. Set status='retired' to deactivate.",
+        ),
+    )
 
 
 @router.get("/{protocol_id}/versions", response_model=list[VersionResponse])

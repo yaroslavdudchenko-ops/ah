@@ -92,6 +92,7 @@ class VersionResponse(BaseModel):
     comment: Optional[str]
     compliance_score: Optional[int]
     generated_by: str
+    is_archived: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

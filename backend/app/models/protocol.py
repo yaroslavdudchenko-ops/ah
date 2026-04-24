@@ -85,6 +85,7 @@ class ProtocolVersion(Base):
     generated_by: Mapped[str] = mapped_column(
         String(100), nullable=False, default="InHouse/Qwen3.5-122B"
     )
+    is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
