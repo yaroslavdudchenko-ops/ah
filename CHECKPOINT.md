@@ -1,9 +1,22 @@
 # CHECKPOINT — Восстановление контекста
 
 **Создан:** 2026-04-23  
-**Версия:** 9.0.0  
-**Обновлён:** 2026-04-24 (сессия 9 — P1/P2 доработки: Diff UI, SAP/ICF генерация, prompt injection guard, in_review фильтр, 4-eyes, copy, created_by, BIOCAD API seeder + 15 протоколов)  
+**Версия:** 11.0.0  
+**Обновлён:** 2026-04-24 (сессия 11 — Проверка целостности после auto-сессии, Dokploy-чеклист ✅, push в GitLab, Фаза 3 Deploy готова к запуску)  
 **Назначение:** Полное восстановление контекста после очистки чата
+
+---
+
+## 0. Краткий summary (последняя сессия)
+
+| Тема | Статус |
+|------|--------|
+| **RAG Phase 1** | `protocol_embeddings` (JSONB vectors), `embedding_service.py`, Alembic `005`, `GET/POST /api/v1/embeddings/*`, хуки в генераторе |
+| **BIOCAD embedding URL** | Откат отдельного коммита: нет `/api/v2/embeddings`, нет `verify=False`; RAG остаётся на внутреннем gateway-совместимом пути из конфига |
+| **Автотесты** | `pytest tests/` → **137 passed**; пароли из `EMPLOYEE_PASSWORD` / `AUDITOR_PASSWORD`; diff — 404 + сравнение двух версий через `db_session`; lifecycle без self-approve |
+| **Docker** | После правок кода **обязательно** `docker compose build backend` + `--force-recreate` — образ **без** bind-mount репозитория |
+| **Git** | Зеркало GitHub: `https://github.com/yaroslavdudchenko-ops/ah.git` (`master`, коммит тестов `9a99d7f`); GitLab `origin` — пушить при необходимости отдельно |
+| **Backlog** | `test_new_features.py`, CHECKPOINT/доки vs api-spec для embeddings, Dokploy редеплой |
 
 ---
 
@@ -147,18 +160,18 @@ CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:8000"]
 
 ### Фаза 2.5 — QA Testing ✅ 100%
 
-**Автотесты:** `pytest tests/ -v` → **136 passed, 0 failed**
+**Автотесты:** `pytest tests/ -v` → **137 passed, 0 failed**
 
 | Файл | Тестов |
 |---|---|
 | `tests/test_health.py` | 1 |
-| `tests/test_protocols.py` | 20 |
+| `tests/test_protocols.py` | 18 |
 | `tests/test_export.py` | 5 |
 | `tests/test_ai_gateway.py` | 5 |
 | `tests/test_templates.py` | 4 |
-| `tests/test_auth.py` | 11 |
-| `tests/test_form_scenarios.py` | 50 |
-| `tests/test_realistic_scenarios.py` | 40 |
+| `tests/test_auth.py` | 12 |
+| `tests/test_form_scenarios.py` | 51 |
+| `tests/test_realistic_scenarios.py` | 41 |
 
 **Ручные тесты:** test-plan.md v3.2.0 — добавлены TAG-01..05, SEARCH-01..02, DRAFT-01..02, UI-01
 
@@ -166,19 +179,32 @@ CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:8000"]
 
 ### Фаза 3 — Deploy 🔄 In Progress ← **ТЕКУЩИЙ ШАГ (24.04.2026)**
 
-**Что нужно сделать:**
-1. Прочитать `dokploy-repo-prep/SKILL.md` — специфика Dokploy
-2. Добавить Traefik labels в `docker-compose.yml`
-3. Настроить Dokploy: New Project → Docker Compose → GitLab repo
-4. Задать env vars в Dokploy UI (AI_GATEWAY_URL, AI_GATEWAY_API_KEY, POSTGRES_PASSWORD)
-5. Deploy → получить публичный URL
-6. Проверить `/health` и HP-01 на продакшен URL
+**Чеклист Dokploy пройден ✅** (проверен в сессии 11):
+- ✅ No `container_name` в docker-compose.yml
+- ✅ Порты: short syntax `- "80"`, `- "8000"`, `- "5432"`
+- ✅ No `env_file`
+- ✅ Обязательные env vars: `${VAR:?error}` синтаксис
+- ✅ Non-root user (appuser) в обоих Dockerfile
+- ✅ HEALTHCHECK в каждом сервисе
+- ✅ Named volumes only (`db-data`)
+- ✅ App слушает на `0.0.0.0`
+- ✅ Traefik labels **НЕ нужны** — Dokploy инжектирует их сам через `addDomainToCompose`
 
-**Ограничения docker-compose для Dokploy:**
-- Без `container_name`
-- Порты: short syntax `- "80"` (без `80:80`)
-- Named volumes только (`db-data`, не `./data`)
-- Non-root user + HEALTHCHECK — уже есть
+**Что нужно сделать в Dokploy UI:**
+1. Задать env vars в **Environment** (до Deploy):
+   ```
+   POSTGRES_PASSWORD=<openssl rand -hex 16>
+   SECRET_KEY=<openssl rand -hex 32>
+   AI_GATEWAY_URL=<URL внутреннего gateway>
+   AI_GATEWAY_API_KEY=<ключ>
+   DATABASE_URL=postgresql+asyncpg://app:<POSTGRES_PASSWORD>@db:5432/protocols
+   CORS_ORIGINS=https://<your-domain>
+   ```
+2. Advanced → Enable Isolated Deployment
+3. General → Deploy
+4. Domains → Add Domain → Service: `frontend` → Port: `80` → Generate `*.traefik.me`
+5. General → Deploy (повторный деплой после домена!)
+6. Проверить `https://<domain>/health` → `{"status": "ok"}`
 
 ---
 
@@ -208,36 +234,23 @@ CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:8000"]
 
 ---
 
-### Фаза 6 — P3 Интеграции и AI улучшения 🔲 Post-MVP Backlog
+### Фаза 6 — P3 Интеграции и AI улучшения 🟡 В работе (RAG Phase 1)
 
-#### RAG (Retrieval-Augmented Generation) — Вариант 1: pgvector
+#### RAG — реализовано (Phase 1, JSONB)
 
-**Решение принято:** pgvector в текущем PostgreSQL (смена образа `postgres:16` → `pgvector/pgvector:pg16`).
+- Миграция **005**, таблица `protocol_embeddings`, векторы в JSONB + cosine в Python (`embedding_service.py`).
+- API: `GET/POST /api/v1/embeddings/status`, `reindex`, и связанные эндпоинты; встраивание контекста в промпт генерации.
+- Отдельный хардкод `aigateway.biocad.ru/api/v2/embeddings` и `verify=False` **сняты** (revert); эмбеддинги идут через настройки gateway (`AI_GATEWAY_URL` / ключ), как и чат.
 
-**Архитектура:**
-```
-Indexing:  ProtocolVersion.content[section] → EmbeddingService → protocol_embeddings(vector)
-Retrieval: embed(title+indication+phase) → SELECT ... ORDER BY embedding <-> $1 LIMIT 3
-Enhanced:  RAG context (top-3 похожих секций) → LLM prompt → лучший раздел
-```
+#### RAG — следующий шаг (pgvector, backlog)
 
-**Что нужно сделать при реализации:**
-1. Уточнить у BIOCAD IT: работает ли текущий `AI_GATEWAY_API_KEY` для `https://aigateway.biocad.ru/api/v2/embeddings`?
-2. Добавить `AI_EMBEDDING_URL=https://aigateway.biocad.ru/api/v2` и `AI_EMBEDDING_MODEL=InHouse/embeddings-model-1` в `.env` и `config.py`
-3. Сменить образ в docker-compose: `pgvector/pgvector:pg16` (данные не теряются, нужен `pg_dumpall` если prod)
-4. Alembic миграция: `CREATE EXTENSION vector` + таблица `protocol_embeddings`
-5. Новый файл `backend/app/services/embedding_service.py`
-6. Fallback: если similarity < 0.7 или найдено < 2 документов — генерировать без RAG
-7. Индексация существующих протоколов (seeder при старте)
-8. Mock embeddings в тестах
+**Решение на будущее:** при росте корпуса — образ `pgvector/pgvector:pg16` + `CREATE EXTENSION vector` + колонка `vector` + IVFFlat/HNSW.
 
-**Переходить на pgvector когда:** similarity-запросы > 100 мс ИЛИ корпус > 5000 протоколов.  
-**До этого момента**: JSON-колонка + numpy cosine_similarity в Python (нулевые изменения инфраструктуры).
+**Переходить на pgvector когда:** similarity в Python > 100 мс ИЛИ корпус > 5000 протоколов.
 
-**Риски к моменту реализации:**
+**Риски:**
 - "Холодный старт" — RAG даёт пользу при 20+ реальных протоколах в БД
-- Проверить доступность `aigateway.biocad.ru` из Docker-контейнера Dokploy
-- Legal/InfoSec согласование: встраивать только метаданные, не полные тексты секций
+- Legal/InfoSec: в промпт попадают только согласованные фрагменты/метаданные
 
 ---
 
@@ -448,7 +461,23 @@ c:\research-protocols-23042026\
 - Synthia брендинг: SynthiaOrb анимация, переименование
 - Нормативная база GCP: Приказ №200н → GCP ЕАЭС, добавлены №75н, №708н, ЕЭК №77
 
-### Сессия 9 (24.04.2026) ← текущая
+### Сессия 11 (24.04.2026) ← текущая
+
+- **Проверка целостности**: После разрыва auto-сессии — git чистый, последний коммит `9a99d7f` (137 tests passed)
+- **Dokploy чеклист**: Все правила соблюдены (no container_name, short ports, named volumes, non-root, healthcheck, no env_file)
+- **Traefik labels**: Подтверждено — НЕ нужны в compose, Dokploy инжектирует сам
+- **Push в GitLab**: Зафиксированы doc-изменения
+- **CHECKPOINT** v11.0.0
+
+### Сессия 10 (24.04.2026)
+
+- **RAG Phase 1**: embeddings в БД (JSONB), сервис эмбеддингов, эндпоинты v1, интеграция в генерацию
+- **Revert**: убрана привязка к BIOCAD-only URL эмбеддингов и небезопасный TLS; функциональность RAG сохранена
+- **Тесты**: 137 passed — auth из env, diff (404 + два `ProtocolVersion` в той же БД что тест), lifecycle без одобрения создателем
+- **GitHub**: push на `yaroslavdudchenko-ops/ah` (`9a99d7f` и связанные коммиты)
+- **CHECKPOINT** v10.0.0
+
+### Сессия 9 (24.04.2026)
 
 - **Diff UI**: backend `GET /protocols/{id}/diff?v1=N&v2=N` (difflib.unified_diff) + слайд-панель сравнения в ProtocolPage (color-coded, секция по секции)
 - **SAP/ICF генерация**: промпты Appendix A (SAP) и Appendix B (ICF), кнопки «Сгенерировать» в сайдбаре, хранение в ProtocolVersion.content
