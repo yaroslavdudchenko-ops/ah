@@ -8,9 +8,12 @@ test_form_scenarios.py — Happy Path + Negative Testing для заполнен
   AI (AI Generator) — логика генерации: fallback, конкурентность, section_regen
 """
 import asyncio
+import os
 import pytest
 from unittest.mock import patch, AsyncMock
 from tests.conftest import bcd100_payload, bcd089_payload
+
+_AUDITOR_PASS = os.environ.get("AUDITOR_PASSWORD", "aud123")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -126,13 +129,15 @@ class TestHappyPathCreate:
 
     @pytest.mark.asyncio
     async def test_hp_update_status_lifecycle(self, client):
-        """HP-FORM-04: Жизненный цикл статусов draft → generated → approved."""
+        """HP-FORM-04: Жизненный цикл draft → generated → in_review.
+
+        Статус approved требует второго пользователя (4-eyes, FR-09.1) — не тестируем здесь."""
         create_resp = await client.post("/api/v1/protocols", json=bcd100_payload())
         pid = create_resp.json()["id"]
 
-        for new_status in ["generated", "checking", "approved"]:
+        for new_status in ["generated", "in_review"]:
             resp = await client.patch(f"/api/v1/protocols/{pid}", json={"status": new_status})
-            assert resp.status_code == 200
+            assert resp.status_code == 200, resp.text
             assert resp.json()["status"] == new_status
 
     @pytest.mark.asyncio
@@ -586,7 +591,7 @@ class TestRbacFormScenarios:
         # Auditor пытается PATCH
         aud_login = await raw_client.post(
             "/api/v1/auth/token",
-            data={"username": "auditor", "password": "auditor123"},
+            data={"username": "auditor", "password": _AUDITOR_PASS},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         aud_tok = aud_login.json()["access_token"]
@@ -624,7 +629,7 @@ class TestRbacFormScenarios:
         # Auditor пытается генерировать
         aud_login = await raw_client.post(
             "/api/v1/auth/token",
-            data={"username": "auditor", "password": "auditor123"},
+            data={"username": "auditor", "password": _AUDITOR_PASS},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         aud_tok = aud_login.json()["access_token"]

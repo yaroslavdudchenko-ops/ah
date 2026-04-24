@@ -1,5 +1,6 @@
 import pytest
 from tests.conftest import bcd100_payload, bcd089_payload
+from app.models.protocol import ProtocolVersion
 
 
 # ─── Happy Path ───────────────────────────────────────────────────────────────
@@ -164,10 +165,42 @@ async def test_create_empty_secondary_endpoints(client):
 
 
 @pytest.mark.asyncio
-async def test_diff_stub_returns_501(client):
-    """ALT-05.1: diff endpoint → 501 NOT_IMPLEMENTED."""
+async def test_diff_returns_404_when_versions_missing(client):
+    """NEG-DIFF-01: GET /diff без версий в БД → 404 VERSION_NOT_FOUND."""
     create = await client.post("/api/v1/protocols", json=bcd100_payload())
     pid = create.json()["id"]
     resp = await client.get(f"/api/v1/protocols/{pid}/diff?v1=1&v2=2")
-    assert resp.status_code == 501
-    assert resp.json()["detail"]["error"]["code"] == "NOT_IMPLEMENTED"
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["error"]["code"] == "VERSION_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_diff_compare_two_versions(client, db_session):
+    """HP-DIFF-01: две версии в тестовой БД → 200 + sections[]."""
+    create = await client.post("/api/v1/protocols", json=bcd100_payload())
+    pid = create.json()["id"]
+    db_session.add(
+        ProtocolVersion(
+            protocol_id=pid,
+            version_number=1,
+            content={"introduction": "Version one text.\n"},
+        )
+    )
+    db_session.add(
+        ProtocolVersion(
+            protocol_id=pid,
+            version_number=2,
+            content={"introduction": "Version two different text.\n"},
+        )
+    )
+    await db_session.commit()
+
+    resp = await client.get(f"/api/v1/protocols/{pid}/diff?v1=1&v2=2")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["protocol_id"] == pid
+    assert body["v1"] == 1 and body["v2"] == 2
+    assert isinstance(body["sections"], list)
+    intro = next((s for s in body["sections"] if s["section"] == "introduction"), None)
+    assert intro is not None
+    assert intro["changed"] is True

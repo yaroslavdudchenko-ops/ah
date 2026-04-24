@@ -1,7 +1,12 @@
 """
 Tests for JWT authentication and role-based access control.
 """
+import os
 import pytest
+
+# Синхронизация с docker-compose / .env (иначе 401 при несовпадении)
+_EMP = os.environ.get("EMPLOYEE_PASSWORD", "emp123")
+_AUD = os.environ.get("AUDITOR_PASSWORD", "aud123")
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 
@@ -25,7 +30,7 @@ async def test_login_admin_ok(raw_client):
 async def test_login_employee_ok(raw_client):
     resp = await raw_client.post(
         "/api/v1/auth/token",
-        data={"username": "employee", "password": "employee123"},
+        data={"username": "employee", "password": _EMP},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     assert resp.status_code == 200
@@ -36,7 +41,7 @@ async def test_login_employee_ok(raw_client):
 async def test_login_auditor_ok(raw_client):
     resp = await raw_client.post(
         "/api/v1/auth/token",
-        data={"username": "auditor", "password": "auditor123"},
+        data={"username": "auditor", "password": _AUD},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     assert resp.status_code == 200
@@ -96,7 +101,7 @@ async def test_auditor_cannot_delete_protocol(raw_client):
     """Auditor JWT → DELETE → 403 (real token, no dependency override)."""
     login = await raw_client.post(
         "/api/v1/auth/token",
-        data={"username": "auditor", "password": "auditor123"},
+        data={"username": "auditor", "password": _AUD},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     token = login.json()["access_token"]
@@ -112,7 +117,7 @@ async def test_employee_cannot_delete_protocol(raw_client):
     """Employee JWT → DELETE → 403 (employee: read, create, update only)."""
     login = await raw_client.post(
         "/api/v1/auth/token",
-        data={"username": "employee", "password": "employee123"},
+        data={"username": "employee", "password": _EMP},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
     token = login.json()["access_token"]
