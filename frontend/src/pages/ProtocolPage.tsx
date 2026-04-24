@@ -4,7 +4,7 @@ import {
   ChevronLeft, Zap, Download, Shield, CheckCircle2,
   AlertTriangle, Info, FileText, RefreshCcw, RotateCcw, Clock, User, Activity, Tag, Lock, GitBranch,
   Send, ThumbsUp, MessageSquareWarning, ChevronDown, Copy, SlidersHorizontal, CheckCheck,
-  GitCompare, BarChart3, FileSignature, X
+  GitCompare, BarChart3, FileSignature, X, Plus, Trash2
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { api, type Protocol, type ProtocolVersion, type GenerateStatus, type CheckResponse, type AuditEntry, type DiffSection } from '../api/client'
@@ -98,6 +98,17 @@ export default function ProtocolPage() {
   const issuesDropdownRef = useRef<HTMLDivElement>(null)
   const [error, setError]         = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState<string | null>(null)
+
+  // Edit meta state
+  const [editingMeta, setEditingMeta]       = useState(false)
+  const [metaForm, setMetaForm]             = useState<{
+    title: string; drug_name: string; inn: string; phase: string
+    therapeutic_area: string; indication: string; population: string
+    primary_endpoint: string; secondary_endpoints: string[]
+    duration_weeks: string; dosing: string
+    inclusion_criteria: string[]; exclusion_criteria: string[]
+  } | null>(null)
+  const [savingMeta, setSavingMeta]         = useState(false)
 
   // Diff state
   const [showDiffPanel, setShowDiffPanel]   = useState(false)
@@ -283,6 +294,48 @@ export default function ProtocolPage() {
       setError((e as Error).message)
     } finally {
       setStatusUpdating(false)
+    }
+  }
+
+  const startEditMeta = () => {
+    if (!protocol) return
+    setMetaForm({
+      title: protocol.title,
+      drug_name: protocol.drug_name,
+      inn: protocol.inn,
+      phase: protocol.phase,
+      therapeutic_area: protocol.therapeutic_area,
+      indication: protocol.indication,
+      population: protocol.population,
+      primary_endpoint: protocol.primary_endpoint,
+      secondary_endpoints: protocol.secondary_endpoints?.length ? protocol.secondary_endpoints : [''],
+      duration_weeks: String(protocol.duration_weeks),
+      dosing: protocol.dosing,
+      inclusion_criteria: protocol.inclusion_criteria?.length ? protocol.inclusion_criteria : [''],
+      exclusion_criteria: protocol.exclusion_criteria?.length ? protocol.exclusion_criteria : [''],
+    })
+    setEditingMeta(true)
+  }
+
+  const handleSaveMeta = async () => {
+    if (!id || !metaForm) return
+    setSavingMeta(true)
+    setError(null)
+    try {
+      const updated = await api.updateProtocol(id, {
+        ...metaForm,
+        duration_weeks: Number(metaForm.duration_weeks),
+        secondary_endpoints: metaForm.secondary_endpoints.filter(s => s.trim()),
+        inclusion_criteria: metaForm.inclusion_criteria.filter(s => s.trim()),
+        exclusion_criteria: metaForm.exclusion_criteria.filter(s => s.trim()),
+      })
+      setProtocol(updated)
+      setEditingMeta(false)
+      setMetaForm(null)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSavingMeta(false)
     }
   }
 
@@ -671,26 +724,164 @@ export default function ProtocolPage() {
 
       {/* Meta card */}
       <div className="card p-5">
-        <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-          <Info className="w-4 h-4 text-gray-400" /> Параметры протокола
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
-          <MetaItem label="Фаза" value={protocol.phase} />
-          <MetaItem label="Популяция" value={protocol.population} />
-          <MetaItem label="Дозирование" value={protocol.dosing} />
-          <MetaItem label="Длительность" value={`${protocol.duration_weeks} нед.`} />
-          <MetaItem label="Первичная КТ" value={protocol.primary_endpoint} />
-          {protocol.secondary_endpoints?.length > 0 && (
-            <MetaItem label="Вторичные КТ" value={protocol.secondary_endpoints.join('; ')} />
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+            <Info className="w-4 h-4 text-gray-400" /> Параметры протокола
+          </h2>
+          {!isReadOnly && !isApproved && !editingMeta && (
+            <button
+              onClick={startEditMeta}
+              className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1 px-2 py-1 rounded border border-brand-200 hover:bg-brand-50 transition-colors"
+            >
+              <RefreshCcw className="w-3 h-3" /> Редактировать
+            </button>
           )}
         </div>
-        {protocol.inclusion_criteria?.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <p className="text-xs text-gray-500 font-medium mb-1">Критерии включения</p>
-            <ul className="text-sm text-gray-700 space-y-0.5">
-              {protocol.inclusion_criteria.map((c, i) => <li key={i}>{i + 1}. {c}</li>)}
-            </ul>
+
+        {editingMeta && metaForm ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label">Название *</label>
+                <input className="form-input text-sm" value={metaForm.title}
+                  onChange={e => setMetaForm(f => f && ({ ...f, title: e.target.value }))} />
+              </div>
+              <div>
+                <label className="form-label">Фаза *</label>
+                <select className="form-input text-sm" value={metaForm.phase}
+                  onChange={e => setMetaForm(f => f && ({ ...f, phase: e.target.value }))}>
+                  {['I','II','III'].map(p => <option key={p} value={p}>Фаза {p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">МНН (INN) *</label>
+                <input className="form-input text-sm" value={metaForm.inn}
+                  onChange={e => setMetaForm(f => f && ({ ...f, inn: e.target.value }))} />
+              </div>
+              <div>
+                <label className="form-label">Торговое наименование / Код *</label>
+                <input className="form-input text-sm" value={metaForm.drug_name}
+                  onChange={e => setMetaForm(f => f && ({ ...f, drug_name: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label className="form-label">Показание / Нозология *</label>
+              <textarea className="form-input text-sm" rows={2} value={metaForm.indication}
+                onChange={e => setMetaForm(f => f && ({ ...f, indication: e.target.value }))} />
+            </div>
+            <div>
+              <label className="form-label">Популяция пациентов *</label>
+              <textarea className="form-input text-sm" rows={2} value={metaForm.population}
+                onChange={e => setMetaForm(f => f && ({ ...f, population: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="form-label">Режим дозирования *</label>
+                <input className="form-input text-sm" value={metaForm.dosing}
+                  onChange={e => setMetaForm(f => f && ({ ...f, dosing: e.target.value }))} />
+              </div>
+              <div>
+                <label className="form-label">Длительность (недели) *</label>
+                <input type="number" className="form-input text-sm" value={metaForm.duration_weeks}
+                  onChange={e => setMetaForm(f => f && ({ ...f, duration_weeks: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label className="form-label">Первичная конечная точка *</label>
+              <textarea className="form-input text-sm" rows={2} value={metaForm.primary_endpoint}
+                onChange={e => setMetaForm(f => f && ({ ...f, primary_endpoint: e.target.value }))} />
+            </div>
+            <div>
+              <label className="form-label text-xs text-gray-500">Вторичные конечные точки</label>
+              {metaForm.secondary_endpoints.map((ep, i) => (
+                <div key={i} className="flex gap-2 mb-1">
+                  <input className="form-input text-sm" value={ep}
+                    onChange={e => setMetaForm(f => f && ({ ...f, secondary_endpoints: f.secondary_endpoints.map((v, j) => j === i ? e.target.value : v) }))} />
+                  {metaForm.secondary_endpoints.length > 1 && (
+                    <button type="button" onClick={() => setMetaForm(f => f && ({ ...f, secondary_endpoints: f.secondary_endpoints.filter((_, j) => j !== i) }))}
+                      className="p-1.5 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                  )}
+                </div>
+              ))}
+              <button type="button" onClick={() => setMetaForm(f => f && ({ ...f, secondary_endpoints: [...f.secondary_endpoints, ''] }))}
+                className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1 mt-1">
+                <Plus className="w-3 h-3" /> Добавить
+              </button>
+            </div>
+            <div>
+              <label className="form-label text-xs text-gray-500">Критерии включения</label>
+              {metaForm.inclusion_criteria.map((c, i) => (
+                <div key={i} className="flex gap-2 mb-1 items-center">
+                  <span className="text-xs text-gray-400 w-5 text-right flex-shrink-0">{i+1}.</span>
+                  <input className="form-input text-sm" value={c}
+                    onChange={e => setMetaForm(f => f && ({ ...f, inclusion_criteria: f.inclusion_criteria.map((v, j) => j === i ? e.target.value : v) }))} />
+                  {metaForm.inclusion_criteria.length > 1 && (
+                    <button type="button" onClick={() => setMetaForm(f => f && ({ ...f, inclusion_criteria: f.inclusion_criteria.filter((_, j) => j !== i) }))}
+                      className="p-1.5 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                  )}
+                </div>
+              ))}
+              <button type="button" onClick={() => setMetaForm(f => f && ({ ...f, inclusion_criteria: [...f.inclusion_criteria, ''] }))}
+                className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1 mt-1">
+                <Plus className="w-3 h-3" /> Добавить
+              </button>
+            </div>
+            <div>
+              <label className="form-label text-xs text-gray-500">Критерии исключения</label>
+              {metaForm.exclusion_criteria.map((c, i) => (
+                <div key={i} className="flex gap-2 mb-1 items-center">
+                  <span className="text-xs text-gray-400 w-5 text-right flex-shrink-0">{i+1}.</span>
+                  <input className="form-input text-sm" value={c}
+                    onChange={e => setMetaForm(f => f && ({ ...f, exclusion_criteria: f.exclusion_criteria.map((v, j) => j === i ? e.target.value : v) }))} />
+                  {metaForm.exclusion_criteria.length > 1 && (
+                    <button type="button" onClick={() => setMetaForm(f => f && ({ ...f, exclusion_criteria: f.exclusion_criteria.filter((_, j) => j !== i) }))}
+                      className="p-1.5 text-gray-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
+                  )}
+                </div>
+              ))}
+              <button type="button" onClick={() => setMetaForm(f => f && ({ ...f, exclusion_criteria: [...f.exclusion_criteria, ''] }))}
+                className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1 mt-1">
+                <Plus className="w-3 h-3" /> Добавить
+              </button>
+            </div>
+            <div className="flex gap-2 pt-2 border-t border-gray-100">
+              <button onClick={handleSaveMeta} disabled={savingMeta} className="btn-primary !py-1.5 text-xs">
+                {savingMeta ? <><Spinner size={14} /> Сохранение...</> : 'Сохранить'}
+              </button>
+              <button onClick={() => { setEditingMeta(false); setMetaForm(null) }} disabled={savingMeta} className="btn-secondary !py-1.5 text-xs">
+                Отмена
+              </button>
+            </div>
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+              <MetaItem label="Фаза" value={protocol.phase} />
+              <MetaItem label="Популяция" value={protocol.population} />
+              <MetaItem label="Дозирование" value={protocol.dosing} />
+              <MetaItem label="Длительность" value={`${protocol.duration_weeks} нед.`} />
+              <MetaItem label="Первичная КТ" value={protocol.primary_endpoint} />
+              {protocol.secondary_endpoints?.length > 0 && (
+                <MetaItem label="Вторичные КТ" value={protocol.secondary_endpoints.join('; ')} />
+              )}
+            </div>
+            {protocol.inclusion_criteria?.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-xs text-gray-500 font-medium mb-1">Критерии включения</p>
+                <ul className="text-sm text-gray-700 space-y-0.5">
+                  {protocol.inclusion_criteria.map((c, i) => <li key={i}>{i + 1}. {c}</li>)}
+                </ul>
+              </div>
+            )}
+            {protocol.exclusion_criteria?.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-xs text-gray-500 font-medium mb-1">Критерии исключения</p>
+                <ul className="text-sm text-gray-700 space-y-0.5">
+                  {protocol.exclusion_criteria.map((c, i) => <li key={i}>{i + 1}. {c}</li>)}
+                </ul>
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -60,7 +60,7 @@ async def test_generator_uses_fallback_when_gateway_fails():
         content = await generate_protocol_sections(protocol, sections=["introduction"])
 
     assert "introduction" in content
-    assert "TEMPLATE FALLBACK" in content["introduction"]
+    assert "FOR REVIEW ONLY" in content["introduction"]
 
 
 @pytest.mark.asyncio
