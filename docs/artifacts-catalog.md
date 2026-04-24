@@ -34,7 +34,7 @@
 | **S-001** | Database Schema (DDL) | [docs/database-schema.md](database-schema.md) | 1.0.0 | Draft |
 | **S-002** | Deploy Guide | [DEPLOY.md](../DEPLOY.md) | 1.0.0 | Draft |
 | **S-003** | ADR-001: PostgreSQL | [docs/adr/ADR-001-postgresql.md](adr/ADR-001-postgresql.md) | 1.0.0 | Accepted |
-| **S-004** | ADR-002: AI Gateway only (v2.0) | [docs/adr/ADR-002-openrouter.md](adr/ADR-002-openrouter.md) | 2.0.0 | Accepted |
+| **S-004** | ADR-002: AI Gateway only (v2.0) | [docs/adr/ADR-002-ai-gateway.md](adr/ADR-002-ai-gateway.md) | 2.0.0 | Accepted |
 | **S-005** | ADR-003: Stack | [docs/adr/ADR-003-stack.md](adr/ADR-003-stack.md) | 1.0.0 | Accepted |
 | **S-006** | Prompts Library | [prompts/](../prompts/) | 1.0.0 | Draft |
 | **S-007** | Project Case | [corecase.md](../corecase.md) | 1.0.0 | Active |

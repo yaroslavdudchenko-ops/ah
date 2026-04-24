@@ -1,31 +1,53 @@
-# Smoke tests — Фаза 1.5 Swagger Verification
+# Smoke tests — Phase 1.5 Swagger Verification
 # Используй REST Client (VSCode) или curl
-# Перед запуском: docker compose up --build
+# Запуск стека: docker compose up --build
 
 @base = http://localhost:8000
 
-### Health check
+# ============================================================
+# ШАГ 0 — Получение токена (выполни первым, скопируй token)
+# ============================================================
+
+### Login as admin → получить Bearer token
+# @name login
+POST {{base}}/api/v1/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=admin&password=admin123
+
+### Меня (текущий пользователь)
+GET {{base}}/api/v1/auth/me
+Authorization: Bearer {{login.response.body.access_token}}
+
+# ============================================================
+# ШАГ 1 — Health & Info
+# ============================================================
+
+### Health check (без авторизации)
 GET {{base}}/health
 
-### API Info
-GET {{base}}/api/v1/info
-
-### List templates (3 seed templates ожидается)
+### List templates (seed templates)
 GET {{base}}/api/v1/templates
+Authorization: Bearer {{login.response.body.access_token}}
+
+# ============================================================
+# ШАГ 2 — Создание протокола
+# ============================================================
 
 ### Create protocol (BCD-100 demo data)
 # @name create
 POST {{base}}/api/v1/protocols
 Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
 
 {
   "title": "BCD-100 Phase II Study in Metastatic Melanoma",
   "drug_name": "BCD-100",
-  "inn": "Пролголимаб",
+  "inn": "пролголимаб",
   "phase": "II",
   "therapeutic_area": "oncology",
-  "indication": "Метастатическая меланома, прогрессия на 1 линии терапии",
-  "population": "Взрослые ≥18 лет, ECOG 0-1, верифицированная меланома с отдалёнными метастазами",
+  "indication": "Метастатическая меланома, прогрессирующая после 1 линии терапии",
+  "population": "Взрослые ≥18 лет, ECOG 0-1, подтверждённая меланома с прогрессирующим заболеванием",
   "primary_endpoint": "ORR (Objective Response Rate) по RECIST 1.1",
   "secondary_endpoints": ["PFS", "OS", "DoR", "DCR"],
   "duration_weeks": 96,
@@ -33,64 +55,145 @@ Content-Type: application/json
   "inclusion_criteria": [
     "Возраст ≥18 лет",
     "ECOG PS 0-1",
-    "Гистологически верифицированная меланома",
-    "Наличие измеримых очагов по RECIST 1.1"
+    "Гистологически подтверждённая метастатическая меланома",
+    "Измеримые очаги по RECIST 1.1"
   ],
   "exclusion_criteria": [
     "Активные аутоиммунные заболевания",
-    "Системная иммуносупрессивная терапия",
-    "Активные метастазы в ЦНС"
-  ]
+    "Предшествующая терапия анти-PD-1/PD-L1",
+    "Активные метастазы в мозг"
+  ],
+  "tags": ["онкология", "pd-1", "фаза-2", "меланома"]
 }
 
 ### Get created protocol
 # @name get
 GET {{base}}/api/v1/protocols/{{create.response.body.id}}
+Authorization: Bearer {{login.response.body.access_token}}
 
 ### List protocols
 GET {{base}}/api/v1/protocols
+Authorization: Bearer {{login.response.body.access_token}}
 
-### Generate sections (MVP 7 секций)
+### Search protocols
+GET {{base}}/api/v1/protocols?search=BCD-100
+Authorization: Bearer {{login.response.body.access_token}}
+
+### Filter by phase
+GET {{base}}/api/v1/protocols?phase=II&status=draft
+Authorization: Bearer {{login.response.body.access_token}}
+
+# ============================================================
+# ШАГ 3 — AI Генерация
+# ============================================================
+
+### Generate all sections
 # @name generate
 POST {{base}}/api/v1/protocols/{{create.response.body.id}}/generate
 Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
 
 {
-  "sections": ["introduction", "objectives", "design", "population", "treatment", "efficacy", "safety"],
+  "sections": null,
   "comment": "Initial generation — BCD-100 Phase II demo"
 }
 
-### Check generation status (подставь task_id из ответа выше)
+### Check generation status
 GET {{base}}/api/v1/protocols/{{create.response.body.id}}/generate/{{generate.response.body.task_id}}
+Authorization: Bearer {{login.response.body.access_token}}
 
 ### List versions
 GET {{base}}/api/v1/protocols/{{create.response.body.id}}/versions
+Authorization: Bearer {{login.response.body.access_token}}
 
-### Consistency check
+# ============================================================
+# ШАГ 4 — Consistency Check
+# ============================================================
+
+### GCP Consistency check (требует сгенерированного контента)
 POST {{base}}/api/v1/protocols/{{create.response.body.id}}/check
 Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
 
 {}
 
+# ============================================================
+# ШАГ 5 — Export
+# ============================================================
+
 ### Export Markdown
 GET {{base}}/api/v1/protocols/{{create.response.body.id}}/export?format=md
+Authorization: Bearer {{login.response.body.access_token}}
 
 ### Export HTML
 GET {{base}}/api/v1/protocols/{{create.response.body.id}}/export?format=html
+Authorization: Bearer {{login.response.body.access_token}}
 
-### Export DOCX (P2)
+### Export DOCX
 GET {{base}}/api/v1/protocols/{{create.response.body.id}}/export?format=docx
+Authorization: Bearer {{login.response.body.access_token}}
 
-### Update protocol
+# ============================================================
+# ШАГ 6 — Audit Log
+# ============================================================
+
+### Global audit log
+GET {{base}}/api/v1/audit-log
+Authorization: Bearer {{login.response.body.access_token}}
+
+### Per-protocol audit log
+GET {{base}}/api/v1/protocols/{{create.response.body.id}}/audit
+Authorization: Bearer {{login.response.body.access_token}}
+
+# ============================================================
+# ШАГ 7 — RBAC проверка
+# ============================================================
+
+### Login as auditor (read-only)
+# @name loginAuditor
+POST {{base}}/api/v1/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=auditor&password=aud123
+
+### Auditor — попытка создать протокол (ожидаем 403)
+POST {{base}}/api/v1/protocols
+Content-Type: application/json
+Authorization: Bearer {{loginAuditor.response.body.access_token}}
+
+{
+  "title": "Should Fail",
+  "drug_name": "X",
+  "inn": "x",
+  "phase": "I",
+  "therapeutic_area": "test",
+  "indication": "test",
+  "population": "test",
+  "primary_endpoint": "test",
+  "secondary_endpoints": [],
+  "duration_weeks": 4,
+  "dosing": "1mg",
+  "inclusion_criteria": [],
+  "exclusion_criteria": []
+}
+
+# ============================================================
+# ШАГ 8 — Update & cleanup
+# ============================================================
+
+### Update protocol status
 PATCH {{base}}/api/v1/protocols/{{create.response.body.id}}
 Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
 
 {
   "status": "in_review"
 }
 
-### Delete protocol
+### Delete protocol (только admin)
 DELETE {{base}}/api/v1/protocols/{{create.response.body.id}}
+Authorization: Bearer {{login.response.body.access_token}}
 
-### Diff (P2 stub — expects 501)
+### Diff stub (ожидаем 501)
 GET {{base}}/api/v1/protocols/{{create.response.body.id}}/diff?v1=1&v2=2
+Authorization: Bearer {{login.response.body.access_token}}

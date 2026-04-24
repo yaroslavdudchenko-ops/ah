@@ -1,15 +1,18 @@
-<!-- v1.0.0 | 2026-04-23 -->
+<!-- v1.1.0 | 2026-04-24 -->
 
 # Frontend Design System Plan
 
 ---
 
 **Author:** Frontend Developer / UI-UX Designer  
-**Date:** 2026-04-23  
-**Version:** 1.0.0  
+**Date:** 2026-04-23 | **Updated:** 2026-04-24  
+**Version:** 1.1.0  
 **Source:** [docs/functional-requirements.md](functional-requirements.md), [docs/ui-ux-brief.md](ui-ux-brief.md)  
 **Standards:** Atomic Design (Brad Frost), WCAG 2.1 AA  
-**Priority:** P1 (implement before Phase 5 — Frontend UI)
+**Status:** Partially Implemented (MVP delivered — see актуальные компоненты ниже)
+
+> **Примечание (2026-04-24):** Фронтенд реализован в рамках MVP. Ряд компонентов из этого плана реализован
+> с адаптацией под Synthia-брендинг. Storybook и subcomponent catalog — P2 backlog.
 
 ---
 
@@ -231,5 +234,21 @@ frontend/src/
 
 ---
 
-**Last Updated:** 2026-04-23  
-**Status:** Planned — implement before Phase 5
+## 9. Фактически реализованные компоненты (MVP, 2026-04-24)
+
+| Компонент | Файл | Статус |
+|---|---|---|
+| Layout + Synthia branding | `components/Layout.tsx` | ✅ Реализован |
+| SynthiaOrb (SVG Morphing Blob) | `components/SynthiaOrb.tsx` | ✅ Реализован |
+| DraftModal (печать/PDF) | `components/DraftModal.tsx` | ✅ Реализован |
+| TagBadge (hash-based color) | `components/TagBadge.tsx` | ✅ Реализован |
+| TagInput (add/remove) | `components/TagInput.tsx` | ✅ Реализован |
+| StatusBadge | `components/StatusBadge.tsx` | ✅ Реализован |
+| Spinner | `components/Spinner.tsx` | ✅ Реализован |
+| ErrorAlert | `components/ErrorAlert.tsx` | ✅ Реализован |
+| ProtectedRoute (RBAC) | `components/ProtectedRoute.tsx` | ✅ Реализован |
+| Button, Badge, Input, FormField | — | Tailwind inline (не выделены в атомы) |
+| Storybook | — | P2 Backlog |
+
+**Last Updated:** 2026-04-24  
+**Status:** Partially Implemented (MVP complete)

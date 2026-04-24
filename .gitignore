@@ -27,3 +27,6 @@ ehthumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# QA temp artifacts
+qa_*.txt

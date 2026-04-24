@@ -90,7 +90,7 @@ CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:8000"]
 
 ### Фаза 0 — Документация ✅ 100%
 
-Все документы в `docs/`, включая `test-plan.md` v3.1.0, `api-spec.md` v1.5.0.
+Все документы в `docs/`, включая `test-plan.md` v3.2.0, `api-spec.md` v1.5.0, `manual-test-guide.md` v1.0.0, `debug-guide.md` v1.0.0.
 
 ---
 
@@ -145,7 +145,7 @@ CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:8000"]
 
 ### Фаза 2.5 — QA Testing ✅ 100%
 
-**Автотесты:** `pytest tests/ -v` → **93 passed, 0 failed**
+**Автотесты:** `pytest tests/ -v` → **136 passed, 0 failed**
 
 | Файл | Тестов |
 |---|---|
@@ -156,12 +156,13 @@ CORS_ORIGINS=["http://localhost","http://localhost:80","http://localhost:8000"]
 | `tests/test_templates.py` | 4 |
 | `tests/test_auth.py` | 11 |
 | `tests/test_form_scenarios.py` | 50 |
+| `tests/test_realistic_scenarios.py` | 40 |
 
-**Ручные тесты:** test-plan.md v3.1.0 — добавлены TAG-01..05, SEARCH-01..02, DRAFT-01..02, UI-01
+**Ручные тесты:** test-plan.md v3.2.0 — добавлены TAG-01..05, SEARCH-01..02, DRAFT-01..02, UI-01
 
 ---
 
-### Фаза 3 — Deploy 🔲 0% ← **СЛЕДУЮЩИЙ ШАГ (24.04.2026 утро)**
+### Фаза 3 — Deploy 🔄 In Progress ← **ТЕКУЩИЙ ШАГ (24.04.2026)**
 
 **Что нужно сделать:**
 1. Прочитать `dokploy-repo-prep/SKILL.md` — специфика Dokploy
