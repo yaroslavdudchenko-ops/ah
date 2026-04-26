@@ -22,7 +22,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (res.status === 401) {
     localStorage.removeItem(STORAGE_KEY)
-    window.location.href = '/login'
+    window.location.replace('/login')
     throw new Error('Session expired')
   }
   if (!res.ok) {

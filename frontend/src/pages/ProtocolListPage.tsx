@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Plus, FlaskConical, Clock, ChevronRight,
@@ -64,29 +64,32 @@ export default function ProtocolListPage() {
   const activeFilterCount = [phase, status, area, tagFilter].filter(Boolean).length
 
   // Load protocols (server-side search + filters)
-  const load = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await api.listProtocols({
-        limit: 100,
-        search: searchQuery || undefined,
-        phase: phase || undefined,
-        status: status || undefined,
-        therapeutic_area: area || undefined,
-        tag: tagFilter ?? undefined,
-      })
-      setProtocols(data)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    api.listProtocols({
+      limit: 100,
+      search: searchQuery || undefined,
+      phase: phase || undefined,
+      status: status || undefined,
+      therapeutic_area: area || undefined,
+      tag: tagFilter ?? undefined,
+    }).then(data => {
+      if (!cancelled) setProtocols(data)
+    }).catch(e => {
+      if (!cancelled) setError((e as Error).message)
+    }).finally(() => {
+      if (!cancelled) setLoading(false)
+    })
+    return () => { cancelled = true }
   }, [searchQuery, phase, status, area, tagFilter])
 
-  useEffect(() => { load() }, [load])
-
-  useEffect(() => { api.getAllTags().then(setAllTags).catch(() => {}) }, [])
+  useEffect(() => {
+    let cancelled = false
+    api.getAllTags().then(tags => { if (!cancelled) setAllTags(tags) }).catch(() => {})
+    return () => { cancelled = false }
+  }, [])
 
   // Debounce search input → suggestions
   useEffect(() => {
