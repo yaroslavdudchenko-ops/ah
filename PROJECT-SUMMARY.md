@@ -1,7 +1,9 @@
 # AI-генератор протоколов клинических исследований
 
 **MVP · FastAPI + React · Dokploy · InHouse/Qwen3.5-122B**  
-**Дедлайн:** 24.04.2026 17:30 · **Коммит:** `8769581` · **Тестов:** 137 passed
+**Дедлайн:** 24.04.2026 17:30 · **Коммит на дедлайн:** `b80014d` · **Тестов:** 137 passed
+
+> ⚠️ **POST-DEADLINE** (26.04.2026): добавлены протоколы BIOCAD с парсингом ct.biocad.ru, теги набора, фикс frontend polling. Итого в БД: **37 протоколов**. HEAD: `c9c51c5`. Подробнее — CHECKPOINT.md §17.
 
 ---
 
@@ -123,9 +125,11 @@ backend → [AI Gateway: aigateway.biocad.ru/api/v2]
 | 1–4 | Архитектура, БД-схема, базовый FastAPI + auth, Alembic миграции |
 | 5–7 | AI Gateway интеграция, генератор 12 секций, prompt engineering |
 | 8–9 | React UI: создание, просмотр, diff, аудит, экспорт, drag-and-drop теги |
-| 10 | RAG Phase 1 (embeddings), 137 тестов, первый Dokploy-деплой |
+| 10 | RAG Phase 1 (embeddings, JSONB), 137 тестов, первый Dokploy-деплой |
 | 11 | Фикс fallback-секций, edit-meta UI, отображение exclusion_criteria |
 | 12 | SAP/ICF fallbacks, Phase IV удалена, export audit log, AI Gateway endpoint fix, фикс паролей демо-пользователей |
+| **13** ⚠️ | **POST-DEADLINE** — BIOCAD recruitment tags (update_biocad_tags.py), +BCD-281-2/MUSCAT, seed_10_protocols.py. 32 протокола в БД |
+| **14** ⚠️ | **POST-DEADLINE** — 5 реальных протоколов с ct.biocad.ru (VERITAS, BCD-225-2, BCD-180-4, BCD-283-1, AQUARELLE). Frontend: отмена устаревших запросов (cancelled flag), location.replace. 37 протоколов в БД |
 
 ---
 
@@ -186,4 +190,5 @@ GET    /health                                     — healthcheck
 
 **GitLab:** `gitlab.biocad.ru/biocad/sandbox/hg-dis-group1-23042025/analysis-dudchenkoi-23042026`  
 **Ветка:** `master`  
-**Последний коммит:** `8769581` — fix(login): correct demo passwords
+**Коммит на дедлайн:** `b80014d` — feat(session-12)  
+**Последний коммит:** `c9c51c5` — fix(encoding): convert docs to utf-8 ⚠️ POST-DEADLINE

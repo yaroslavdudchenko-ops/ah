@@ -1,6 +1,8 @@
 # Release Notes — Synthia AI Protocol Generator
 
-**Version:** 3.0.0 | **Date:** 2026-04-24 | **Status:** Active
+**Version:** 4.0.0 | **Date:** 2026-04-26 | **Status:** Active
+
+> ⚠️ **POST-DEADLINE**: версии 1.2.0 и 1.3.0 добавлены после дедлайна 2026-04-24 17:30. Дедлайн-версия: v1.1.0 (коммит `b80014d`). Rollback — см. CHECKPOINT.md §17.
 
 ---
 
@@ -67,7 +69,7 @@
 - BCD-132 (Тоцилизумаб-БК) — Фаза I, ревматоидный артрит, статус: draft
 
 ### Тестирование
-- **136 автоматических тестов** (pytest): unit, integration, smoke, RBAC, realistic scenarios
+    - **137 автоматических тестов** (pytest): unit, integration, smoke, RBAC, realistic scenarios
 - Тест-план v3.2.0 (docs/test-plan.md)
 - Ручное руководство для тестирования: docs/manual-test-guide.md
 - Debug-гайд: docs/debug-guide.md
@@ -75,7 +77,7 @@
 ### Известные ограничения
 - AI Gateway требует подключения к BIOCAD инфраструктуре (недоступен локально без VPN/Ollama)
 - Compliance scores (ICH + РФ НМД) рассчитываются AI — не прошли клиническую валидацию
-- RAG не реализован — запланирован после MVP (pgvector, Вариант 1)
+- RAG Phase 1 реализован на бэкенде (JSONB embeddings, cosine similarity в Python) — UI не реализован (бэклог)
 
 ---
 
@@ -122,11 +124,58 @@
 
 ---
 
-## Backlog — v1.2.0 (Post-MVP)
+---
+
+## v1.2.0 — BIOCAD Protocols Patch ⚠️ POST-DEADLINE
+
+**Дата:** 2026-04-26  
+**Тип:** Data Patch  
+**Статус:** Released (GitLab `5ed5464`)  
+**⚠️ Добавлено ПОСЛЕ дедлайна 2026-04-24 17:30**
+
+### Новые скрипты
+- **`seed_10_protocols.py`** — 10 синтетических протоколов с расширенными полями (разные фазы, области, статусы)
+- **`update_biocad_tags.py`** — обновление тегов «Набор открыт» / «Набор завершен» у 15 BIOCAD-протоколов из открытого реестра ct.biocad.ru; добавлен протокол BCD-281-2/MUSCAT (neurology)
+- **`PROJECT-SUMMARY.md`** — сводный документ по проекту
+
+### Данные
+- Протоколов в БД: 31 → **32**
+- Источник тегов: публичный реестр `ct.biocad.ru/ru/nozology` (парсинг HTML, 2026-04-26)
+
+---
+
+## v1.3.0 — Real BIOCAD Protocols + Frontend Fix ⚠️ POST-DEADLINE
+
+**Дата:** 2026-04-26  
+**Тип:** Feature + Bug Fix  
+**Статус:** Released (GitLab `a68cf57`, `c387a84`)  
+**⚠️ Добавлено ПОСЛЕ дедлайна 2026-04-24 17:30**
+
+### Новые данные
+- **`seed_biocad_5_protocols.py`** — 5 протоколов с реальными данными `ct.biocad.ru/nozology/<slug>`:
+  - BCD-267-2/VERITAS — HER2+ рак молочной железы, Фаза III, Набор открыт (разрешение МЗ РФ №115 от 23.03.2026)
+  - BCD-225-2 — рак мочевого пузыря, Фаза II, Набор открыт
+  - BCD-180-4 — анкилозирующий спондилит, Фаза I, Набор открыт (разрешение МЗ РБ)
+  - BCD-283-1 — лимфома Ходжкина, Фаза III, Набор завершен
+  - BCD-132-6/AQUARELLE — болезнь Девика / ЗСОНМ, Фаза I, Набор завершен
+- Протоколов в БД: 32 → **37**
+- Критерии включения/невключения и номера разрешений — реальные данные сайта. Разделы дизайна/эндпоинтов — синтетические
+
+### Исправления (Frontend)
+- **`ProtocolListPage.tsx`**: `useCallback+useEffect([load])` заменён на `useEffect([...deps])` с флагом `cancelled` — устранён race condition при быстрой смене фильтров
+- **`api/client.ts`**: `window.location.href = '/login'` → `window.location.replace('/login')` при 401 — нет лишней записи в history
+
+### Диагностика
+- Повторные запросы `GET /api/v1/protocols` в Nginx-логах диагностированы как Chrome speculative prefetch при наведении на `<Link>` — не React-цикл
+
+---
+
+## Backlog — v1.4.0 (Post-MVP)
 
 ### P3 Integrations
-- RAG: pgvector в текущем PostgreSQL, `InHouse/embeddings-model-1`
-- ct.biocad.ru интеграция: импорт реестра препаратов (ожидает API от BIOCAD IT)
+- RAG UI: страница «Похожие протоколы», индикатор использования RAG-контекста при генерации (бэкенд готов — Phase 1)
+- RAG Phase 2: pgvector вместо JSONB cosine similarity (при корпусе > 5000 протоколов)
+- ct.biocad.ru интеграция: автозаполнение формы из реестра препаратов (ожидает API от BIOCAD IT)
 - Уведомления рецензенту при переходе в `in_review`
 
 ---
