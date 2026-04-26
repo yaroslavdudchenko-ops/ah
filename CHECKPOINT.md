@@ -1,9 +1,15 @@
 # CHECKPOINT — Восстановление контекста
 
 **Создан:** 2026-04-23  
-**Версия:** 12.0.0  
-**Обновлён:** 2026-04-24 (сессия 12 — Финальные фиксы кода A/B/C, новые тесты, документация обновлена, готов к push и Dokploy redeploy)  
+**Версия:** 13.0.0  
+**Обновлён:** 2026-04-26 (сессия 13 — POST-DEADLINE: BIOCAD protocols patch, recruitment tags, rollback info)  
 **Назначение:** Полное восстановление контекста после очистки чата
+
+> ⚠️ **POST-DEADLINE ИЗМЕНЕНИЯ** (после 2026-04-24 17:30):
+> - `feat(seed)` коммит `5ed5464` (2026-04-26) — добавлены скрипты `seed_10_protocols.py`, `update_biocad_tags.py`, `PROJECT-SUMMARY.md`
+> - Скрипты **запущены локально** и на **Dokploy** (32 протокола в БД, теги "Набор открыт"/"Набор завершен")
+> - Данные получены из открытого реестра `ct.biocad.ru` (парсинг HTML 2026-04-26)
+> - Для отката к состоянию на дедлайн — см. раздел 17 ниже
 
 ---
 
@@ -15,8 +21,9 @@
 | **BIOCAD embedding URL** | Откат отдельного коммита: нет `/api/v2/embeddings`, нет `verify=False`; RAG остаётся на внутреннем gateway-совместимом пути из конфига |
 | **Автотесты** | `pytest tests/` → **137 passed**; пароли из `EMPLOYEE_PASSWORD` / `AUDITOR_PASSWORD`; diff — 404 + сравнение двух версий через `db_session`; lifecycle без self-approve |
 | **Docker** | После правок кода **обязательно** `docker compose build backend` + `--force-recreate` — образ **без** bind-mount репозитория |
-| **Git** | Зеркало GitHub: `https://github.com/yaroslavdudchenko-ops/ah.git` (`master`, коммит тестов `9a99d7f`); GitLab `origin` — пушить при необходимости отдельно |
-| **Backlog** | `test_new_features.py`, CHECKPOINT/доки vs api-spec для embeddings, Dokploy редеплой |
+| **Git** | Зеркало GitHub: `https://github.com/yaroslavdudchenko-ops/ah.git` (`master`, коммит `5ed5464`); GitLab `origin` — актуален с коммитом `5ed5464` (push 2026-04-26) |
+| **⚠️ POST-DEADLINE** | `seed_10_protocols.py`, `update_biocad_tags.py` — добавлены ПОСЛЕ дедлайна (2026-04-26). 32 протокола в БД. Откат → раздел 17 |
+| **Lokальный сервер** | Образы пересобраны 2026-04-26. Frontend: порт `63767`, Backend: порт `63763` |
 
 ---
 
@@ -551,3 +558,78 @@ c:\research-protocols-23042026\
 - `env -i` при деплое — только `.env` файл доходит до контейнера
 - Домены = Traefik labels → обязателен редеплой после изменения домена
 - Isolated Deployment рекомендован (Advanced → Enable)
+
+---
+
+## 17. Откат прода (rollback)
+
+> Актуально если нужно вернуться к состоянию на **дедлайн 2026-04-24 17:30**
+
+### Состояние на дедлайн
+- Последний коммит до дедлайна: `b80014d` (`feat(session-12)`, 2026-04-24 16:44)
+- После дедлайна добавлены: `168eeb5`, `8769581`, `5ed5464`
+
+### Коммиты ПОСЛЕ дедлайна (хронологически)
+
+| Хэш | Дата | Описание |
+|-----|------|----------|
+| `168eeb5` | 2026-04-24 17:00 | fix(ai-gateway): remove hardcoded /v1 prefix |
+| `8769581` | 2026-04-24 17:18 | fix(login): correct demo passwords (emp123, aud123) |
+| `5ed5464` | 2026-04-26 19:29 | **⚠️ POST-DEADLINE** — seed scripts, BIOCAD protocols patch |
+
+### Инструкция по откату в Dokploy
+
+**Вариант A — откат через Dokploy UI (рекомендован):**
+1. Открыть Dokploy → вкладка **Deployments**
+2. Найти деплой, соответствующий коммиту `b80014d` (дата ~16:44 24.04.2026)
+3. Нажать **Redeploy** на нём — Dokploy задеплоит именно тот коммит
+
+**Вариант B — откат через Git:**
+```bash
+# Создать rollback-ветку на дедлайн-коммите
+git checkout -b rollback/deadline b80014d
+git push origin rollback/deadline
+
+# В Dokploy: сменить Branch на rollback/deadline → Deploy
+```
+
+**Вариант C — откат данных БД (только протоколы):**
+Если нужно убрать только POST-DEADLINE протоколы из БД (не трогая код):
+```bash
+# В терминале Dokploy → backend
+docker compose exec -e PYTHONPATH=/app backend python -c "
+import asyncio
+from sqlalchemy import select, delete
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from app.core.config import settings
+from app.models.protocol import Protocol
+
+# Удалить протоколы, добавленные системой (скриптами) после дедлайна
+# Это: BCD-281-2/MUSCAT (единственный новый из update_biocad_tags.py)
+async def main():
+    engine = create_async_engine(settings.DATABASE_URL)
+    Session = async_sessionmaker(engine)
+    async with Session() as db:
+        result = await db.execute(
+            select(Protocol).where(
+                Protocol.drug_name == 'BCD-281-2/MUSCAT',
+                Protocol.created_by == 'system'
+            )
+        )
+        p = result.scalar_one_or_none()
+        if p:
+            await db.delete(p)
+            await db.commit()
+            print('Deleted BCD-281-2/MUSCAT')
+        else:
+            print('Not found')
+    await engine.dispose()
+asyncio.run(main())
+"
+```
+
+### Что изменилось в данных после дедлайна
+- **Добавлен 1 новый протокол:** `BCD-281-2/MUSCAT` (neurology, Набор открыт, created_by=system)
+- **Обновлены теги** у 15 BIOCAD-протоколов: добавлены "Набор открыт" / "Набор завершен"
+- **Итого протоколов на дедлайн:** 31 → **сейчас:** 32
+- Теги можно убрать вручную через UI (редактирование протокола) без отката кода
