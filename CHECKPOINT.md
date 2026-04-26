@@ -1,14 +1,17 @@
 # CHECKPOINT — Восстановление контекста
 
 **Создан:** 2026-04-23  
-**Версия:** 13.0.0  
-**Обновлён:** 2026-04-26 (сессия 13 — POST-DEADLINE: BIOCAD protocols patch, recruitment tags, rollback info)  
+**Версия:** 14.0.0  
+**Обновлён:** 2026-04-26 (сессия 14 — POST-DEADLINE: +5 парсинг BIOCAD, frontend polling fix, 37 протоколов в проде)  
 **Назначение:** Полное восстановление контекста после очистки чата
 
 > ⚠️ **POST-DEADLINE ИЗМЕНЕНИЯ** (после 2026-04-24 17:30):
-> - `feat(seed)` коммит `5ed5464` (2026-04-26) — добавлены скрипты `seed_10_protocols.py`, `update_biocad_tags.py`, `PROJECT-SUMMARY.md`
-> - Скрипты **запущены локально** и на **Dokploy** (32 протокола в БД, теги "Набор открыт"/"Набор завершен")
-> - Данные получены из открытого реестра `ct.biocad.ru` (парсинг HTML 2026-04-26)
+> - `feat(seed)` коммит `5ed5464` (2026-04-26) — `seed_10_protocols.py`, `update_biocad_tags.py`, `PROJECT-SUMMARY.md`
+> - `fix(login)` коммит `8769581` — исправлены демо-пароли (emp123, aud123)
+> - `fix(ai-gateway)` коммит `168eeb5` — убран hardcoded /v1 prefix
+> - `fix(frontend)` коммит `c387a84` — отмена устаревших запросов списка, `location.replace` на 401
+> - `feat(seed)` коммит `a68cf57` (2026-04-26) — 5 реальных протоколов БИОКАД с парсингом `ct.biocad.ru`
+> - **Продакшн (Dokploy):** 37 протоколов в БД (скрипт запущен через Dokploy Terminal)
 > - Для отката к состоянию на дедлайн — см. раздел 17 ниже
 
 ---
@@ -17,13 +20,13 @@
 
 | Тема | Статус |
 |------|--------|
-| **RAG Phase 1** | `protocol_embeddings` (JSONB vectors), `embedding_service.py`, Alembic `005`, `GET/POST /api/v1/embeddings/*`, хуки в генераторе |
-| **BIOCAD embedding URL** | Откат отдельного коммита: нет `/api/v2/embeddings`, нет `verify=False`; RAG остаётся на внутреннем gateway-совместимом пути из конфига |
-| **Автотесты** | `pytest tests/` → **137 passed**; пароли из `EMPLOYEE_PASSWORD` / `AUDITOR_PASSWORD`; diff — 404 + сравнение двух версий через `db_session`; lifecycle без self-approve |
-| **Docker** | После правок кода **обязательно** `docker compose build backend` + `--force-recreate` — образ **без** bind-mount репозитория |
-| **Git** | Зеркало GitHub: `https://github.com/yaroslavdudchenko-ops/ah.git` (`master`, коммит `5ed5464`); GitLab `origin` — актуален с коммитом `5ed5464` (push 2026-04-26) |
-| **⚠️ POST-DEADLINE** | `seed_10_protocols.py`, `update_biocad_tags.py` — добавлены ПОСЛЕ дедлайна (2026-04-26). 32 протокола в БД. Откат → раздел 17 |
-| **Lokальный сервер** | Образы пересобраны 2026-04-26. Frontend: порт `63767`, Backend: порт `63763` |
+| **Протоколы в проде** | **37 записей** в БД Dokploy (был 32; +5 реальных BIOCAD с парсингом ct.biocad.ru) |
+| **Парсинг ct.biocad.ru** | 5 протоколов добавлены через `seed_biocad_5_protocols.py`: VERITAS, BCD-225-2, BCD-180-4, BCD-283-1, AQUARELLE. Реальные критерии включения/невключения, номера разрешений МЗ РФ/РБ. |
+| **Frontend fix** | `ProtocolListPage`: убран `useCallback+useEffect([load])` → `useEffect([...deps])` с флагом отмены (`cancelled`). `api/client.ts`: `window.location.href` → `location.replace` на 401. |
+| **Nginx polling** | Диагностировано: повторные запросы — Chrome speculative prefetch при наведении на `<Link>`. Не React-цикл. |
+| **Git** | GitLab `origin` актуален: `a68cf57` (HEAD) |
+| **⚠️ POST-DEADLINE** | Все изменения с `168eeb5` по `a68cf57` сделаны ПОСЛЕ дедлайна 2026-04-24 17:30. Откат → раздел 17 |
+| **Dokploy Terminal** | Работает через `/bin/sh` + `PYTHONPATH=/app /usr/local/bin/python3 <script>` |
 
 ---
 
@@ -402,9 +405,14 @@ c:\research-protocols-23042026\
 │   │   └── routers/
 │   │       ├── health.py, protocols.py, generate.py, check.py
 │   │       ├── export.py, templates.py, auth.py, audit.py
-│   ├── alembic/versions/001_initial_schema.py
-│   ├── scripts/seed_demo.py
-│   └── tests/ (93 тестов)
+│   ├── alembic/versions/001..005_*.py
+│   ├── scripts/
+│   │   ├── seed_demo.py               ← исходные демо-данные
+│   │   ├── seed_10_protocols.py       ← 10 синтетических протоколов (POST-DEADLINE)
+│   │   ├── seed_from_biocad_api.py    ← 15 протоколов из api.biocadless.com
+│   │   ├── update_biocad_tags.py      ← обновление тегов + BCD-281-2/MUSCAT (POST-DEADLINE)
+│   │   └── seed_biocad_5_protocols.py ← 5 реальных протоколов с ct.biocad.ru (POST-DEADLINE)
+│   └── tests/ (137 тестов)
 ├── frontend/
 │   └── src/
 │       ├── App.tsx
@@ -468,7 +476,21 @@ c:\research-protocols-23042026\
 - Synthia брендинг: SynthiaOrb анимация, переименование
 - Нормативная база GCP: Приказ №200н → GCP ЕАЭС, добавлены №75н, №708н, ЕЭК №77
 
-### Сессия 11 (24.04.2026) ← текущая
+### Сессия 14 (26.04.2026) ← текущая
+
+- **+5 реальных протоколов BIOCAD**: `seed_biocad_5_protocols.py` — данные с `ct.biocad.ru/nozology/<slug>` (реальные критерии вкл/невкл, разрешения МЗ РФ/РБ, синтетические разделы дизайна/эндпоинтов). **37 протоколов в прод-БД.**
+- **Диагностика Nginx polling**: определён Chrome speculative prefetch как источник повторных GET /api/v1/protocols в логах (не React-цикл).
+- **fix(frontend)**: `ProtocolListPage.tsx` — рефакторинг `useEffect` с флагом `cancelled` (устранение race condition); `api/client.ts` — `location.replace('/login')` вместо `href` при 401.
+- **Dokploy Terminal debug**: разрешены bash/python/PYTHONPATH проблемы; команда для выполнения: `PYTHONPATH=/app /usr/local/bin/python3 /app/scripts/<script>.py`
+- **CHECKPOINT** v14.0.0
+
+### Сессия 13 (26.04.2026)
+
+- **BIOCAD protocols patch**: `update_biocad_tags.py` — обновлены теги у 15 BIOCAD-протоколов ("Набор открыт"/"Набор завершен"), добавлен `BCD-281-2/MUSCAT`. **32 протокола в БД**.
+- **Lokальный сервер**: пересборка образов после комита `8769581` (исправлены пароли emp123/aud123). Логин через UI — работает.
+- **CHECKPOINT** v13.0.0
+
+### Сессия 11 (24.04.2026)
 
 - **Проверка целостности**: После разрыва auto-сессии — git чистый, последний коммит `9a99d7f` (137 tests passed)
 - **Dokploy чеклист**: Все правила соблюдены (no container_name, short ports, named volumes, non-root, healthcheck, no env_file)
@@ -575,7 +597,9 @@ c:\research-protocols-23042026\
 |-----|------|----------|
 | `168eeb5` | 2026-04-24 17:00 | fix(ai-gateway): remove hardcoded /v1 prefix |
 | `8769581` | 2026-04-24 17:18 | fix(login): correct demo passwords (emp123, aud123) |
-| `5ed5464` | 2026-04-26 19:29 | **⚠️ POST-DEADLINE** — seed scripts, BIOCAD protocols patch |
+| `5ed5464` | 2026-04-26 19:29 | feat(seed): seed scripts, BIOCAD protocols patch, PROJECT-SUMMARY.md |
+| `c387a84` | 2026-04-26 | fix(frontend): cancel stale list requests; use location.replace on 401 |
+| `a68cf57` | 2026-04-26 | **feat(seed)**: 5 реальных протоколов BIOCAD с парсингом ct.biocad.ru |
 
 ### Инструкция по откату в Dokploy
 
@@ -629,7 +653,34 @@ asyncio.run(main())
 ```
 
 ### Что изменилось в данных после дедлайна
-- **Добавлен 1 новый протокол:** `BCD-281-2/MUSCAT` (neurology, Набор открыт, created_by=system)
-- **Обновлены теги** у 15 BIOCAD-протоколов: добавлены "Набор открыт" / "Набор завершен"
-- **Итого протоколов на дедлайн:** 31 → **сейчас:** 32
-- Теги можно убрать вручную через UI (редактирование протокола) без отката кода
+- **Добавлен 1 новый протокол:** `BCD-281-2/MUSCAT` (neurology, Набор открыт, created_by=system) — сессия 13
+- **Обновлены теги** у 15 BIOCAD-протоколов: добавлены "Набор открыт" / "Набор завершен" — сессия 13
+- **Добавлено 5 протоколов** из `seed_biocad_5_protocols.py` (VERITAS, BCD-225-2, BCD-180-4, BCD-283-1, AQUARELLE) — сессия 14
+- **Итого протоколов на дедлайн:** 31 → **сессия 13:** 32 → **сессия 14 (прод):** 37
+- Теги можно убрать вручную через UI; протоколы можно удалить через DELETE /api/v1/protocols/{id} (admin)
+
+### Rollback данных (откат seed_biocad_5_protocols)
+Для удаления 5 BIOCAD-протоколов сессии 14 через Dokploy Terminal (`/bin/sh`):
+```
+PYTHONPATH=/app /usr/local/bin/python3 -c "
+import asyncio
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy import delete
+from app.core.config import settings
+from app.models.protocol import Protocol
+
+TO_DELETE = ['BCD-267-2/VERITAS', 'BCD-225-2', 'BCD-180-4', 'BCD-283-1', 'BCD-132-6/AQUARELLE']
+
+async def main():
+    engine = create_async_engine(settings.DATABASE_URL)
+    Session = async_sessionmaker(engine)
+    async with Session() as db:
+        for name in TO_DELETE:
+            r = await db.execute(delete(Protocol).where(Protocol.drug_name == name))
+            print(f'Deleted {r.rowcount} row(s): {name}')
+        await db.commit()
+    await engine.dispose()
+
+asyncio.run(main())
+"
+```

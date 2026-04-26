@@ -1,6 +1,6 @@
 ﻿# Р РµРµСЃС‚СЂ РІРµСЂСЃРёР№ РґРѕРєСѓРјРµРЅС‚Р°С†РёРё
 
-**Version:** 1.6.0 | **Date:** 2026-04-24
+**Version:** 1.7.0 | **Date:** 2026-04-26
 
 РџСЂР°РІРёР»Р° РІРµСЂСЃРёРѕРЅРёСЂРѕРІР°РЅРёСЏ:
 - **MAJOR** вЂ” СЃС‚СЂСѓРєС‚СѓСЂРЅС‹Рµ РёР·РјРµРЅРµРЅРёСЏ РґРѕРєСѓРјРµРЅС‚Р° (РїРµСЂРµСЂР°Р±РѕС‚РєР° СЂР°Р·РґРµР»РѕРІ)
@@ -19,13 +19,17 @@
 |---|---|---|---|
 | `README.md` | 2.0.0 | 2026-04-23 | Active |
 | `ARCHITECTURE.md` | 1.2.0 | 2026-04-23 | Active |
-| `CHECKPOINT.md` | 11.0.0 | 2026-04-24 | Active |
+| `CHECKPOINT.md` | 14.0.0 | 2026-04-26 | Active |
 | `DEPLOY.md` | 1.2.0 | 2026-04-24 | Active |
 | `PROMPTS.md` | 2.0.0 | 2026-04-24 | Active |
 | `RELEASE-NOTES.md` | 3.0.0 | 2026-04-24 | Active |
 | `.env.example` | 1.0.0 | 2026-04-23 | Active |
 | `docs/artifacts-catalog.md` | 1.3.0 | 2026-04-24 | Active |
-| `docs/VERSIONS.md` | 1.5.0 | 2026-04-24 | Active |
+| `docs/VERSIONS.md` | 1.7.0 | 2026-04-26 | Active |
+| `backend/scripts/seed_biocad_5_protocols.py` | 1.0.0 | 2026-04-26 | Active |
+| `backend/scripts/seed_10_protocols.py` | 1.0.0 | 2026-04-26 | Active |
+| `backend/scripts/update_biocad_tags.py` | 1.0.0 | 2026-04-26 | Active |
+| `PROJECT-SUMMARY.md` | 1.0.0 | 2026-04-26 | Active |
 | `docs/functional-requirements.md` | 1.3.0 | 2026-04-24 | Active |
 | `docs/business-requirements.md` | 1.0.0 | 2026-04-23 | Draft |
 | `docs/api-spec.md` | 1.6.0 | 2026-04-24 | Active |
