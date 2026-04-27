@@ -20,12 +20,12 @@
 
 | Тема | Статус |
 |------|--------|
-| **Протоколы в проде** | **37 записей** в БД Dokploy (был 32; +5 реальных BIOCAD с парсингом ct.biocad.ru) |
+| **Протоколы в проде** | **15 протоколов на сайте**. В БД ~37 записей суммарно (часть seed-скриптов запускалась только локально; не все данные попали в прод) |
 | **Парсинг ct.biocad.ru** | 5 протоколов добавлены через `seed_biocad_5_protocols.py`: VERITAS, BCD-225-2, BCD-180-4, BCD-283-1, AQUARELLE. Реальные критерии включения/невключения, номера разрешений МЗ РФ/РБ. |
 | **Frontend fix** | `ProtocolListPage`: убран `useCallback+useEffect([load])` → `useEffect([...deps])` с флагом отмены (`cancelled`). `api/client.ts`: `window.location.href` → `location.replace` на 401. |
 | **Nginx polling** | Диагностировано: повторные запросы — Chrome speculative prefetch при наведении на `<Link>`. Не React-цикл. |
 | **Git** | GitLab `origin` актуален: `a68cf57` (HEAD) |
-| **⚠️ POST-DEADLINE** | Все изменения с `168eeb5` по `a68cf57` сделаны ПОСЛЕ дедлайна 2026-04-24 17:30. Откат → раздел 17 |
+| **⚠️ POST-DEADLINE** | Все изменения с `168eeb5` по `da2083f` сделаны ПОСЛЕ дедлайна 2026-04-24 17:30. Откат → раздел 17 |
 | **Dokploy Terminal** | Работает через `/bin/sh` + `PYTHONPATH=/app /usr/local/bin/python3 <script>` |
 
 ---
