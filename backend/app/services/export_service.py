@@ -68,18 +68,164 @@ def export_html(protocol: Protocol, version: ProtocolVersion) -> bytes:
 <html lang="ru">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{protocol.title}</title>
 <style>
-  body {{ font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }}
-  h1 {{ border-bottom: 2px solid #333; padding-bottom: 8px; }}
-  h2 {{ border-bottom: 1px solid #ccc; margin-top: 32px; }}
-  blockquote {{ background: #fff3cd; border-left: 4px solid #ffc107; padding: 8px 16px; margin: 0; }}
-  table {{ border-collapse: collapse; width: 100%; }}
-  td, th {{ border: 1px solid #ddd; padding: 8px; }}
+  :root {{
+    --brand: #0284c7;
+    --brand-dark: #0c4a6e;
+    --brand-light: #f0f9ff;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+  }}
+
+  * {{ box-sizing: border-box; }}
+
+  body {{
+    font-family: 'Segoe UI', Arial, sans-serif;
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 28px;
+    line-height: 1.7;
+    color: var(--text);
+    background: #fff;
+  }}
+
+  /* Document header */
+  .doc-header {{
+    border-bottom: 3px solid var(--brand);
+    padding-bottom: 16px;
+    margin-bottom: 32px;
+  }}
+  .doc-header h1 {{
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--brand-dark);
+    margin: 0 0 6px;
+    border: none;
+    padding: 0;
+  }}
+  .doc-disclaimer {{
+    background: var(--brand-light);
+    border-left: 4px solid var(--brand);
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 12px;
+    border-radius: 0 6px 6px 0;
+  }}
+
+  h1 {{
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--brand-dark);
+    border-bottom: 3px solid var(--brand);
+    padding-bottom: 8px;
+    margin: 0 0 24px;
+  }}
+  h2 {{
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--brand-dark);
+    border-bottom: 2px solid var(--brand-light);
+    margin-top: 36px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }}
+  h2::before {{
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 16px;
+    background: var(--brand);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }}
+  h3 {{
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-top: 20px;
+    margin-bottom: 6px;
+  }}
+
+  p {{ margin: 0 0 10px; font-size: 14px; }}
+
+  ul, ol {{ margin: 6px 0 12px 20px; }}
+  li {{ font-size: 14px; line-height: 1.65; margin-bottom: 3px; }}
+
+  strong {{ color: var(--brand-dark); }}
+
+  /* Parameter block */
+  .params-block {{
+    background: var(--brand-light);
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 0 0 28px;
+  }}
+  .params-block ul {{ margin: 0; list-style: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; }}
+  .params-block li {{ font-size: 13px; color: #374151; }}
+  .params-block li strong {{ color: var(--brand-dark); }}
+
+  blockquote {{
+    background: var(--brand-light);
+    border-left: 4px solid var(--brand);
+    padding: 10px 16px;
+    margin: 12px 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 13px;
+    color: #374151;
+  }}
+
+  table {{
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0;
+    font-size: 13px;
+  }}
+  th {{
+    background: var(--brand);
+    color: #fff;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+  }}
+  td {{ border: 1px solid var(--border); padding: 7px 12px; }}
+  tr:nth-child(even) td {{ background: #f8faff; }}
+
+  /* Open issues */
+  .issue-critical {{ color: #dc2626; font-weight: 600; }}
+  .issue-major    {{ color: #ea580c; font-weight: 600; }}
+  .issue-minor    {{ color: #ca8a04; font-weight: 600; }}
+
+  /* Footer */
+  .doc-footer {{
+    margin-top: 48px;
+    padding-top: 12px;
+    border-top: 2px solid var(--brand-light);
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+  }}
+
+  /* Print */
+  @media print {{
+    @page {{ size: A4 portrait; margin: 20mm 15mm; }}
+    * {{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
+    body {{ margin: 0; padding: 0; max-width: 100%; }}
+    h2 {{ break-after: avoid; page-break-after: avoid; }}
+    section {{ break-inside: avoid; page-break-inside: avoid; }}
+  }}
 </style>
 </head>
 <body>
 {body}
+<div class="doc-footer">Synthia AI Protocol Generator &nbsp;·&nbsp; FOR RESEARCH USE ONLY — NOT FOR CLINICAL USE</div>
 </body>
 </html>"""
     return html.encode("utf-8")

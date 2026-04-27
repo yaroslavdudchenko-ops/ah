@@ -59,10 +59,119 @@ export default function DraftModal({ version, protocolTitle, onClose }: Props) {
       {/* Print-only styles */}
       <style>{`
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 22mm 18mm 18mm 18mm;
+          }
+
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
           body > *:not(.draft-print-root) { display: none !important; }
-          .draft-print-root { position: static !important; }
+          .draft-print-root {
+            position: static !important;
+            background: #fff !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
+          }
           .draft-no-print { display: none !important; }
-          .draft-print-body { max-height: none !important; overflow: visible !important; }
+          .draft-print-body {
+            max-height: none !important;
+            overflow: visible !important;
+            padding: 0 !important;
+          }
+
+          /* Section page breaks */
+          .draft-print-section {
+            break-inside: avoid-page;
+            page-break-inside: avoid;
+          }
+          .draft-print-section + .draft-print-section {
+            break-before: auto;
+            page-break-before: auto;
+          }
+
+          /* Section header accent */
+          .draft-print-section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #0284c7 !important;
+          }
+          .draft-print-section-num {
+            background: #0284c7 !important;
+            color: #fff !important;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+          }
+          .draft-print-section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0c4a6e !important;
+          }
+
+          /* Prose reset for print */
+          .draft-print-body h1 { font-size: 18px; font-weight: 700; color: #0c4a6e !important; margin: 16px 0 6px; }
+          .draft-print-body h2 { font-size: 14px; font-weight: 600; color: #0369a1 !important; margin: 12px 0 4px; }
+          .draft-print-body h3 { font-size: 12px; font-weight: 600; color: #374151; margin: 10px 0 4px; }
+          .draft-print-body p  { font-size: 11px; line-height: 1.65; color: #111827; margin: 0 0 6px; }
+          .draft-print-body ul, .draft-print-body ol { margin: 4px 0 8px 16px; }
+          .draft-print-body li { font-size: 11px; line-height: 1.6; color: #111827; }
+          .draft-print-body strong { color: #0c4a6e !important; }
+          .draft-print-body blockquote {
+            border-left: 3px solid #0284c7 !important;
+            background: #f0f9ff !important;
+            padding: 6px 10px;
+            margin: 8px 0;
+            font-size: 11px;
+            color: #374151;
+          }
+          .draft-print-body table { border-collapse: collapse; width: 100%; font-size: 10px; }
+          .draft-print-body th {
+            background: #0284c7 !important;
+            color: #fff !important;
+            padding: 5px 8px;
+            text-align: left;
+            font-weight: 600;
+          }
+          .draft-print-body td { border: 1px solid #e5e7eb !important; padding: 4px 8px; }
+          .draft-print-body tr:nth-child(even) td { background: #f8faff !important; }
+
+          /* Print header */
+          .draft-print-header-bar {
+            border-bottom: 3px solid #0284c7 !important;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+          }
+          .draft-print-header-bar h1 {
+            font-size: 20px;
+            font-weight: 800;
+            color: #0c4a6e !important;
+            margin: 6px 0 2px;
+          }
+          .draft-print-header-bar p {
+            font-size: 11px;
+            color: #6b7280;
+            margin: 2px 0;
+          }
+          .draft-print-header-meta {
+            font-size: 10px;
+            color: #9ca3af;
+            text-align: right;
+          }
         }
       `}</style>
 
@@ -106,15 +215,15 @@ export default function DraftModal({ version, protocolTitle, onClose }: Props) {
           <div className="draft-print-body flex-1 overflow-y-auto px-10 py-8 space-y-8">
 
             {/* Print header */}
-            <div className="hidden print:block mb-6 pb-4 border-b border-gray-300">
-              <p className="text-xs text-gray-500 text-right">
+            <div className="hidden print:block draft-print-header-bar">
+              <p className="draft-print-header-meta">
                 Распечатано: {new Date().toLocaleString('ru', {
                   day: '2-digit', month: '2-digit', year: 'numeric',
                   hour: '2-digit', minute: '2-digit',
                 })} · FOR RESEARCH USE ONLY — NOT FOR CLINICAL USE
               </p>
-              <h1 className="text-xl font-bold text-gray-900 mt-2">{protocolTitle}</h1>
-              <p className="text-sm text-gray-500">Версия {version.version_number}</p>
+              <h1>{protocolTitle}</h1>
+              <p>Версия {version.version_number}</p>
             </div>
 
             {/* Watermark */}
@@ -129,12 +238,12 @@ export default function DraftModal({ version, protocolTitle, onClose }: Props) {
                 <p className="text-sm">Содержимое отсутствует</p>
               </div>
             ) : sections.map((key, idx) => (
-              <section key={key} className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-bold text-brand-600 bg-brand-50 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
+              <section key={key} className="space-y-3 draft-print-section">
+                <div className="flex items-center gap-3 draft-print-section-header">
+                  <span className="text-xs font-bold text-brand-600 bg-brand-50 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 draft-print-section-num">
                     {idx + 1}
                   </span>
-                  <h2 className="text-base font-bold text-gray-900 border-b border-gray-200 pb-1 flex-1">
+                  <h2 className="text-base font-bold text-gray-900 border-b border-gray-200 pb-1 flex-1 draft-print-section-title">
                     {SECTION_LABELS[key] ?? key}
                   </h2>
                 </div>
