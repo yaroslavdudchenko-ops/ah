@@ -20,18 +20,20 @@ import {
   useHostTheme,
 } from 'cursor/canvas';
 
-// ── Production data · HEAD da2083f · 2026-04-27 ─────────────────────────────
+// ── Production data · HEAD 5bec271 · 2026-04-27 ─────────────────────────────
 
 const COMMITS = [
-  { hash: 'b80014d', date: '24.04 16:44', label: 'feat(session-12)',   note: 'Дедлайн',                                     post: false },
-  { hash: '168eeb5', date: '24.04 17:00', label: 'fix(ai-gateway)',    note: 'remove hardcoded /v1 prefix',                 post: true  },
-  { hash: '8769581', date: '24.04 17:18', label: 'fix(login)',         note: 'emp123 / aud123',                             post: true  },
-  { hash: '5ed5464', date: '26.04',       label: 'feat(seed)',         note: 'seed scripts, BIOCAD patch, PROJECT-SUMMARY', post: true  },
-  { hash: 'c387a84', date: '26.04',       label: 'fix(frontend)',      note: 'cancelled flag, location.replace on 401',     post: true  },
-  { hash: 'a68cf57', date: '26.04',       label: 'feat(seed)',         note: '5 реальных протоколов ct.biocad.ru',          post: true  },
-  { hash: '8f249e3', date: '26.04',       label: 'docs(checkpoint)',   note: 'v14.0.0 — сессия 14, 37 протоколов в проде', post: true  },
-  { hash: 'c9c51c5', date: '26.04',       label: 'fix(encoding)',      note: 'CP1251/BOM → UTF-8 для 6 файлов docs/',      post: true  },
-  { hash: 'da2083f', date: '27.04',       label: 'docs',               note: 'PROJECT-SUMMARY + RELEASE-NOTES обновлены',  post: true  },
+  { hash: 'b80014d', date: '24.04 16:44', label: 'feat(session-12)',   note: 'Дедлайн',                                      post: false },
+  { hash: '168eeb5', date: '24.04 17:00', label: 'fix(ai-gateway)',    note: 'remove hardcoded /v1 prefix',                  post: true  },
+  { hash: '8769581', date: '24.04 17:18', label: 'fix(login)',         note: 'emp123 / aud123',                              post: true  },
+  { hash: '5ed5464', date: '26.04',       label: 'feat(seed)',         note: 'seed scripts, BIOCAD patch, PROJECT-SUMMARY',  post: true  },
+  { hash: 'c387a84', date: '26.04',       label: 'fix(frontend)',      note: 'cancelled flag, location.replace on 401',      post: true  },
+  { hash: 'a68cf57', date: '26.04',       label: 'feat(seed)',         note: '5 реальных протоколов ct.biocad.ru',           post: true  },
+  { hash: '8f249e3', date: '26.04',       label: 'docs(checkpoint)',   note: 'v14.0.0 — сессия 14, 37 протоколов в проде',  post: true  },
+  { hash: 'c9c51c5', date: '26.04',       label: 'fix(encoding)',      note: 'CP1251/BOM → UTF-8 для 6 файлов docs/',       post: true  },
+  { hash: 'da2083f', date: '27.04',       label: 'docs',               note: 'PROJECT-SUMMARY + RELEASE-NOTES обновлены',   post: true  },
+  { hash: '5bec271', date: '27.04',       label: 'docs',               note: 'уточнение: 15 протоколов на сайте vs ~37 в БД', post: true },
+  { hash: '4173ed3', date: '27.04',       label: 'feat(canvases)',     note: 'canvases/ в репо + PDF print-стили DraftModal', post: true },
 ];
 
 const BY_AREA = [
@@ -94,7 +96,7 @@ export default function SynthiaProductionStatus() {
         <Stack gap={4}>
           <H1>Synthia — Production Status</H1>
           <Text tone="secondary" size="small">
-            AI Protocol Generator · Dokploy Production · HEAD: da2083f · 2026-04-27
+            AI Protocol Generator · Dokploy Production · HEAD: 4173ed3 · 2026-04-27
           </Text>
         </Stack>
         <Button variant="secondary" onClick={() => window.print()}>
@@ -103,7 +105,7 @@ export default function SynthiaProductionStatus() {
       </Row>
 
       <Callout tone="warning">
-        POST-DEADLINE: 8 коммитов после 24.04.2026 17:30 (b80014d). Дедлайн-коммит: b80014d.
+        POST-DEADLINE: 11 коммитов после 24.04.2026 17:30 (b80014d). Дедлайн-коммит: b80014d.
         Rollback — CHECKPOINT.md §17.
       </Callout>
 
@@ -117,7 +119,7 @@ export default function SynthiaProductionStatus() {
         <Stat value="15"  label="Протоколов на сайте (прод)" tone="success" />
         <Stat value="137" label="Автотестов passed"           tone="success" />
         <Stat value="3"   label="Сервиса (frontend/back/db)"  tone="success" />
-        <Stat value="8"   label="Коммитов после дедлайна"     tone="warning" />
+        <Stat value="11"  label="Коммитов после дедлайна"     tone="warning" />
       </Grid>
 
       <Divider />
@@ -244,7 +246,7 @@ export default function SynthiaProductionStatus() {
 
       <Row justify="space-between" align="center">
         <Text tone="secondary" size="small">
-          Synthia AI Protocol Generator · CHECKPOINT v14.0.0 · HEAD: da2083f · GitLab + GitHub origin/master
+          Synthia AI Protocol Generator · CHECKPOINT v14.0.0 · HEAD: 4173ed3 · GitLab + GitHub origin/master
         </Text>
         <Button variant="ghost" onClick={() => window.print()}>
           Печать / PDF

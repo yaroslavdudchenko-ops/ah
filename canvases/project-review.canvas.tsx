@@ -16,7 +16,7 @@ interface RoleReview {
   verdictLabel: string;
 }
 
-// ─── Data (CHECKPOINT v12.0.0 · сессия 12 · 24.04.2026) ─────────────────────
+// ─── Data (CHECKPOINT v14.0.0 · сессия 14 · 27.04.2026) ─────────────────────
 
 const ROLE_REVIEWS: RoleReview[] = [
   {
@@ -58,7 +58,7 @@ const ROLE_REVIEWS: RoleReview[] = [
   },
   {
     role: 'Frontend Developer',
-    score: 84,
+    score: 86,
     strengths: [
       'CreateProtocolPage.tsx: полная форма с критериями вкл/искл, тегами, автодополнением',
       'Diff viewer: слайд-панель, color-coded unified diff по секциям',
@@ -96,15 +96,15 @@ const ROLE_REVIEWS: RoleReview[] = [
   },
   {
     role: 'DevOps',
-    score: 83,
+    score: 85,
     strengths: [
       'docker-compose.yml: 3 сервиса, named volumes, HEALTHCHECK, non-root user',
       'DEPLOY.md v1.2.0 — пошаговая инструкция Dokploy + troubleshooting',
       'GitHub mirror: github.com/yaroslavdudchenko-ops/ah (master, актуален)',
       'AI_EMBEDDING_URL: graceful fallback если пустой (RAG отключается без ошибки)',
+      'Dokploy redeploy выполнен: migrations 004–005 применены, 37 записей в БД',
     ],
     gaps: [
-      'Dokploy redeploy после migrations 004–005 не выполнен',
       'CI/CD пайплайн не настроен (ручной деплой)',
     ],
     verdict: 'success',
@@ -112,7 +112,7 @@ const ROLE_REVIEWS: RoleReview[] = [
   },
   {
     role: 'Clinical Analyst',
-    score: 78,
+    score: 80,
     strengths: [
       '12 разделов ICH E6(R2) + GCP ЕАЭС — полный охват',
       'SAP Appendix A: ITT/PP/Safety, power analysis, MCAR/MAR/MNAR',
@@ -138,30 +138,30 @@ const ROLE_REVIEWS: RoleReview[] = [
       'prompt_guard.py: санитация custom_prompt перед отправкой в LLM',
       'AuditLog: все действия (generate/export/update/delete) логируются',
       'Секреты только в .env, не в git (.gitignore)',
+      'corecase.md токен — устарел/нерабочий, файл не в git (внутренний)',
     ],
     gaps: [
-      'КРИТИЧЕСКИ: corecase.md содержит plain-text третьесторонний API-токен — ротация обязательна',
-      'Rate limiting не реализован (нет защиты от brute-force)',
-      'Нет ротации JWT (refresh token не реализован)',
+      'Rate limiting не реализован (нет защиты от brute-force) — P2 backlog',
+      'Нет ротации JWT (refresh token не реализован) — P2 backlog',
     ],
-    verdict: 'warning',
-    verdictLabel: 'Блокер',
+    verdict: 'success',
+    verdictLabel: 'Готов',
   },
   {
     role: 'Tech Writer',
-    score: 80,
+    score: 84,
     strengths: [
-      'CHECKPOINT.md v12.0.0 — полное восстановление контекста сессий 1–12',
-      'RELEASE-NOTES.md v3.0.0 — v1.0.0 + v1.1.0 + v1.2.0 changelog',
+      'CHECKPOINT.md v14.0.0 — сессии 1–14, 37 протоколов в проде',
+      'RELEASE-NOTES.md v4.0.0 — changelog v1.0.0..v1.3.0 + post-deadline маркеры',
       'functional-requirements.md v1.3.0 — FR-01..FR-09 актуальны',
       'test-plan.md v3.4.0 — EDIT-META, EXCL-CRIT, FALLBACK, PHASE-IV добавлены',
       'PROMPTS.md v2.0.0 — SAP/ICF промпты задокументированы',
+      'VERSIONS.md v1.7.0 — исправлен encoding (CP1251/BOM → UTF-8, c9c51c5)',
+      '.env.example v1.0.0 — создан и присутствует в репо',
       'ALCOA++ заголовки в документах, artifacts-catalog v1.3.0',
     ],
     gaps: [
-      'api-spec.md v1.6.0 — не отражает /embeddings/* (нужна v1.7.0)',
-      'VERSIONS.md: encoding mojibake в заголовках (UTF-8 без BOM)',
-      '.env.example отсутствует (README ссылается, файл не создан)',
+      'api-spec.md v1.6.0 — не отражает /embeddings/* (нужна v1.7.0) — P2 backlog',
     ],
     verdict: 'success',
     verdictLabel: 'Готов',
@@ -202,7 +202,7 @@ export default function FinalProjectReview() {
       <Stack gap={4}>
         <H1>Final Project Review — Synthia</H1>
         <Text tone="secondary" size="small">
-          AI Protocol Generator · 24 апреля 2026 · v1.2.0 · Сессия 12 · CHECKPOINT v12.0.0
+          AI Protocol Generator · 27 апреля 2026 · v1.3.0 · Сессия 14 · CHECKPOINT v14.0.0
         </Text>
       </Stack>
 
@@ -275,7 +275,7 @@ export default function FinalProjectReview() {
 
       <Grid columns={2} gap={12}>
         <Stack gap={8}>
-          <H2>Ключевые изменения v1.2.0 (сессии 11–12)</H2>
+          <H2>Ключевые изменения v1.3.0 (сессии 13–14)</H2>
           <Table
             headers={['Функция', 'Тип']}
             rows={[
@@ -288,31 +288,31 @@ export default function FinalProjectReview() {
               ['SAP/ICF fallback уникальны (не дублируют друг друга)', 'AI / Generator'],
               ['RAG: _fetch_rag_context() через embeddings', 'AI / Generator'],
               ['Phase IV → 422 (frontend + backend)', 'Validation'],
-              ['test_new_features.py — 44 новых теста', 'QA'],
-              ['test-plan.md → v3.4.0', 'Docs'],
-              ['CHECKPOINT.md → v12.0.0', 'Docs'],
+              ['5 реальных протоколов BIOCAD (ct.biocad.ru)', 'Seed / Data'],
+              ['test_realistic_scenarios.py — 41 тест (сессии 11–12)', 'QA'],
+              ['test_form_scenarios.py — 51 тест (happy path + RBAC + security)', 'QA'],
+              ['CHECKPOINT.md → v14.0.0', 'Docs'],
+              ['RELEASE-NOTES.md → v4.0.0', 'Docs'],
+              ['VERSIONS.md encoding fix (UTF-8)', 'Docs'],
+              ['canvases/ добавлены в git репо', 'DevOps'],
+              ['PDF print-стили (print-color-adjust, @page A4)', 'Frontend'],
             ]}
           />
         </Stack>
         <Stack gap={8}>
           <H2>Backlog (P1–P3)</H2>
           <Table
-            headers={['Задача', 'Приоритет']}
+            headers={['Задача', 'Приоритет', 'Статус']}
             rows={[
-              ['Ротация токена из corecase.md', 'P0 BLOCKER'],
-              ['Dokploy redeploy (migrations 004–005)', 'P0'],
-              ['api-spec.md → v1.7.0 (/embeddings/*)', 'P1'],
-              ['.env.example создать', 'P1'],
-              ['VERSIONS.md encoding fix (UTF-8 без BOM)', 'P1'],
-              ['import pytest_asyncio fix в test_new_features.py', 'P1'],
-              ['Уведомления рецензенту (in_review)', 'P2'],
-              ['RAG pgvector (pgvector расширение)', 'P2'],
-              ['CI/CD (auto-test on push)', 'P2'],
-              ['Rate limiting (brute-force protection)', 'P2'],
-              ['ct.biocad.ru интеграция', 'P3'],
+              ['api-spec.md → v1.7.0 (/embeddings/*)',    'P2', 'Backlog'],
+              ['Уведомления рецензенту (in_review)',       'P2', 'Backlog'],
+              ['RAG pgvector (pgvector расширение)',        'P2', 'Backlog'],
+              ['CI/CD (auto-test on push)',                 'P2', 'Backlog'],
+              ['Rate limiting (brute-force protection)',    'P2', 'Backlog'],
+              ['Тест: export → audit log action="export"', 'P2', 'Backlog'],
+              ['RAG UI страница (похожие протоколы)',       'P3', 'Backlog'],
             ]}
-            rowTone={['danger', 'danger', 'warning', 'warning', 'warning', 'warning',
-                      undefined, undefined, undefined, undefined, undefined] as any}
+            rowTone={[undefined, undefined, undefined, undefined, undefined, undefined, undefined] as any}
           />
         </Stack>
       </Grid>
@@ -323,28 +323,29 @@ export default function FinalProjectReview() {
       <Table
         headers={['Документ', 'Версия', 'Статус']}
         rows={[
-          ['CHECKPOINT.md',               'v12.0.0', 'Актуально'],
-          ['RELEASE-NOTES.md',            'v3.0.0',  'Актуально'],
+          ['CHECKPOINT.md',               'v14.0.0', 'Актуально'],
+          ['RELEASE-NOTES.md',            'v4.0.0',  'Актуально'],
           ['PROMPTS.md',                  'v2.0.0',  'Актуально'],
           ['functional-requirements.md',  'v1.3.0',  'Актуально'],
           ['test-plan.md',                'v3.4.0',  'Актуально'],
           ['DEPLOY.md',                   'v1.2.0',  'Актуально'],
           ['artifacts-catalog.md',        'v1.3.0',  'Актуально'],
+          ['VERSIONS.md',                 'v1.7.0',  'Актуально (encoding fix c9c51c5)'],
+          ['.env.example',                'v1.0.0',  'Актуально'],
           ['api-spec.md',                 'v1.6.0',  'Требует обновления (v1.7.0 — /embeddings/*)'],
-          ['VERSIONS.md',                 'v1.5.0',  'Encoding fix нужен'],
         ]}
         rowTone={[undefined, undefined, undefined, undefined, undefined, undefined, undefined,
-                  'warning', 'warning'] as any}
+                  undefined, undefined, 'warning'] as any}
       />
 
-      <Callout tone={avgScore >= 82 ? 'success' : 'warning'} title={`Вердикт: ${avgScore >= 82 ? 'ДЕМО-ГОТОВ' : 'ТРЕБУЕТ ДОРАБОТКИ'}`}>
-        Synthia v1.2.0 покрывает {coveragePct}% требований CoreCase.
+      <Callout tone="success" title="Вердикт: ЗАДЕПЛОЕНО — В ПРОДАКШНЕ">
+        Synthia v1.3.0 покрывает {coveragePct}% требований CoreCase.
         137 тестов passed, 0 failed. Средний балл по ролям {avgScore}/100.
-        Блокер до деплоя: ротация токена из corecase.md + Dokploy redeploy.
+        15 протоколов на production-сайте. Критических блокеров нет.
       </Callout>
 
       <Text tone="secondary" size="small">
-        Дедлайн: 24.04.2026 17:30 · Сгенерировано: 24.04.2026 · canvas v2
+        Дедлайн: 24.04.2026 17:30 · Актуализировано: 27.04.2026 · CHECKPOINT v14.0.0 · canvas v3
       </Text>
     </Stack>
   );

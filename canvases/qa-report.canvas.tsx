@@ -5,7 +5,7 @@ import {
   useHostTheme,
 } from 'cursor/canvas';
 
-// ─── Data (CHECKPOINT v12.0.0 · 137 passed · 0 failed) ───────────────────────
+// ─── Data (CHECKPOINT v14.0.0 · 137 passed · 0 failed) ───────────────────────
 
 const TEST_RESULTS = {
   total: 137,
@@ -13,14 +13,14 @@ const TEST_RESULTS = {
   failed: 0,
   duration: '~18s',
   files: [
-    { file: 'test_ai_gateway.py',      total: 5,  note: 'AI Gateway mock, retry, timeout, 503 fallback' },
-    { file: 'test_auth.py',            total: 12, note: 'Login, JWT, RBAC, whoami — credentials из EMPLOYEE_PASSWORD/AUDITOR_PASSWORD' },
-    { file: 'test_export.py',          total: 5,  note: 'MD / HTML / DOCX watermark; Open Issues JSON/CSV' },
-    { file: 'test_form_scenarios.py',  total: 50, note: 'Happy Path (9) + Negative (23) + Security (3) + RBAC (11) + AI (4)' },
-    { file: 'test_health.py',          total: 1,  note: 'GET /health → 200' },
-    { file: 'test_protocols.py',       total: 16, note: 'CRUD, versions, diff, copy, 4-eyes approve, lock, tags, suggestions' },
-    { file: 'test_templates.py',       total: 4,  note: 'List, get templates' },
-    { file: 'test_new_features.py',    total: 44, note: 'Сессия 11–12: edit meta, exclusion criteria, SAP/ICF fallbacks, export audit, phase IV — NEW' },
+    { file: 'test_health.py',              total: 1,  note: 'GET /health → 200' },
+    { file: 'test_auth.py',                total: 12, note: 'Login, JWT, RBAC, whoami — credentials из env' },
+    { file: 'test_protocols.py',           total: 18, note: 'CRUD, versions, diff, copy, 4-eyes approve, lock' },
+    { file: 'test_export.py',              total: 5,  note: 'MD / HTML / DOCX + open-issues JSON/CSV' },
+    { file: 'test_ai_gateway.py',          total: 5,  note: 'Mock, retry, timeout, 503 fallback' },
+    { file: 'test_templates.py',           total: 4,  note: 'List, get templates' },
+    { file: 'test_form_scenarios.py',      total: 51, note: 'Happy path (9) + Negative (23) + Security (3) + RBAC (11) + AI (4) + edge cases' },
+    { file: 'test_realistic_scenarios.py', total: 41, note: 'Сессия 11–12: SAP/ICF, edit meta, exclusion criteria, phase IV — NEW' },
   ],
 };
 
@@ -152,9 +152,9 @@ export default function QaReport() {
 
       {activeTab === 'new' && (
         <Stack gap={16}>
-          <H2>Новые тесты — сессия 11–12 (test_new_features.py)</H2>
+          <H2>Новые тесты — сессия 11–12 (test_realistic_scenarios.py)</H2>
           <Text tone="secondary">
-            44 теста: smoke, edit_metadata, section_fallbacks, alternative, negative.
+            41 тест: smoke, edit_metadata, section_fallbacks, alternative, negative.
             Покрывают: exclusion_criteria, SAP/ICF fallback уникальность, export audit, phase IV.
           </Text>
           <Table

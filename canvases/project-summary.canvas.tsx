@@ -120,12 +120,14 @@ export default function ProjectSummary() {
         <Table
           headers={['Сессия', 'Ключевые результаты']}
           rows={[
-            ['1–4', 'Архитектура, БД-схема, базовый FastAPI + auth, Alembic миграции'],
-            ['5–7', 'AI Gateway интеграция, генератор 12 секций, prompt engineering'],
-            ['8–9', 'React UI: создание, просмотр, diff, аудит, экспорт, drag-and-drop теги'],
-            ['10', 'RAG Phase 1 (embeddings), 137 тестов, Dokploy-деплой'],
-            ['11', 'Фикс fallback-секций, edit-meta UI, отображение exclusion_criteria'],
-            ['12', 'SAP/ICF fallbacks, Phase IV удалена, export audit, AI Gateway endpoint fix'],
+            ['1–4',  'Архитектура, БД-схема, базовый FastAPI + auth, Alembic миграции'],
+            ['5–7',  'AI Gateway интеграция, генератор 12 секций, prompt engineering'],
+            ['8–9',  'React UI: создание, просмотр, diff, аудит, экспорт, drag-and-drop теги'],
+            ['10',   'RAG Phase 1 (embeddings), 137 тестов, Dokploy-деплой'],
+            ['11',   'Фикс fallback-секций, edit-meta UI, отображение exclusion_criteria'],
+            ['12',   'SAP/ICF fallbacks, Phase IV удалена, export audit, AI Gateway endpoint fix'],
+            ['13',   '5 реальных протоколов BIOCAD (ct.biocad.ru), seed-скрипты, encoding fix'],
+            ['14',   'PDF print-стили, canvases в git, CHECKPOINT v14.0.0, RELEASE-NOTES v4.0.0'],
           ]}
         />
       </Stack>
