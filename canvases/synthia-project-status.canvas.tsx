@@ -145,7 +145,11 @@ export default function SynthiaProductionStatus() {
       <Grid columns={3} gap={16}>
         <Stack gap={6}>
           <H3>По области</H3>
-          <BarChart data={BY_AREA.map(d => ({ x: d.label, y: d.value }))} height={170} />
+          <BarChart
+            categories={BY_AREA.map(d => d.label)}
+            series={[{ name: 'Протоколов', data: BY_AREA.map(d => d.value) }]}
+            height={170}
+          />
         </Stack>
         <Stack gap={6}>
           <H3>По статусу</H3>
@@ -153,7 +157,11 @@ export default function SynthiaProductionStatus() {
         </Stack>
         <Stack gap={6}>
           <H3>По фазе</H3>
-          <BarChart data={BY_PHASE.map(d => ({ x: d.label, y: d.value }))} height={170} />
+          <BarChart
+            categories={BY_PHASE.map(d => d.label)}
+            series={[{ name: 'Протоколов', data: BY_PHASE.map(d => d.value) }]}
+            height={170}
+          />
         </Stack>
       </Grid>
 

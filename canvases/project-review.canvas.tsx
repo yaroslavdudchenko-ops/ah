@@ -192,10 +192,6 @@ export default function FinalProjectReview() {
   const partialCount = CORECASE_FEATURES.filter(f => f.status === 'partial').length;
   const coveragePct  = Math.round(((doneCount + partialCount * 0.5) / CORECASE_FEATURES.length) * 100);
 
-  const scoreChartData = ROLE_REVIEWS.map(r => ({
-    label: r.role.replace('Developer', 'Dev').replace(' Engineer', '').replace('Tech Writer', 'TechWriter'),
-    value: r.score,
-  }));
 
   return (
     <Stack gap={24} style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -237,7 +233,11 @@ export default function FinalProjectReview() {
       <Divider />
 
       <H2>Оценка по ролям</H2>
-      <BarChart data={scoreChartData} height={220} maxValue={100} tone="info" />
+      <BarChart
+        categories={ROLE_REVIEWS.map(r => r.role.replace('Developer', 'Dev').replace(' Engineer', '').replace('Tech Writer', 'TechWriter'))}
+        series={[{ name: 'Оценка', data: ROLE_REVIEWS.map(r => r.score), tone: 'info' }]}
+        height={220}
+      />
 
       <Grid columns={2} gap={16}>
         {ROLE_REVIEWS.map(r => (

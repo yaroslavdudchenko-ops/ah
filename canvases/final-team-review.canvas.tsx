@@ -346,9 +346,9 @@ export default function FinalTeamReviewProd() {
       {/* Role scores */}
       <H2>Оценка по ролям</H2>
       <BarChart
-        data={ROLE_SCORES.map(r => ({ x: r.role.replace(' Developer', '').replace(' Engineer', ''), y: r.score }))}
+        categories={ROLE_SCORES.map(r => r.role.replace(' Developer', '').replace(' Engineer', ''))}
+        series={[{ name: 'Оценка', data: ROLE_SCORES.map(r => r.score), tone: 'info' }]}
         height={180}
-        tone="info"
       />
       <Grid columns={2} gap={10}>
         {ROLE_SCORES.map(r => (
