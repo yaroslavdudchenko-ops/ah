@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Synthia — Project Summary</title>
+<style>
+:root{--brand:#0284c7;--brand-dark:#0c4a6e;--brand-light:#f0f9ff;--green:#1F8A65;--green-bg:#f0faf5;--orange:#d97706;--blue:#3685BF;--blue-bg:#eff6ff;--gray:#6b7280;--border:#e5e7eb;--text:#111827}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;color:var(--text);background:#fff}
+.wrap{max-width:860px;margin:0 auto;padding:32px 24px}
+.page-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid var(--brand);padding-bottom:16px;margin-bottom:28px}
+.page-header h1{font-size:26px;font-weight:800;color:var(--brand-dark)}
+.sub{font-size:14px;color:var(--gray);margin-top:5px}
+.print-btn{background:var(--brand);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer}
+.grid{display:grid;gap:12px;margin-bottom:20px}
+.grid-4{grid-template-columns:repeat(4,1fr)}.grid-3{grid-template-columns:repeat(3,1fr)}.grid-2{grid-template-columns:repeat(2,1fr)}
+.stat{border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+.stat-value{font-size:28px;font-weight:800;color:var(--brand)}.stat-label{font-size:12px;color:var(--gray);margin-top:2px}
+.stat.success .stat-value{color:var(--green)}
+hr{border:none;border-top:1px solid var(--border);margin:24px 0}
+h2{font-size:17px;font-weight:700;color:var(--brand-dark);border-bottom:2px solid var(--brand-light);padding-bottom:6px;margin-bottom:14px}
+h3{font-size:14px;font-weight:700;color:var(--brand-dark);margin-bottom:8px}
+table{border-collapse:collapse;width:100%;font-size:13px;margin-bottom:8px}
+thead tr{background:var(--brand)}
+th{color:#fff;padding:8px 10px;text-align:left;font-weight:600}
+td{border:1px solid var(--border);padding:6px 10px;vertical-align:top}
+tr:nth-child(even) td{background:#f8faff}
+.card{border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+.card-title{font-size:13px;font-weight:700;color:var(--brand-dark);margin-bottom:6px}
+.card-body{font-size:12px;color:var(--gray);line-height:1.5}
+.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.feat-row{display:flex;align-items:flex-start;gap:8px}
+.pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap;flex-shrink:0;margin-top:1px}
+.pill.info{background:#dbeafe;color:#1e40af}
+.pill.success{background:#dcfce7;color:#166534}
+.feat-desc{font-size:12px;color:var(--gray);line-height:1.5}
+.compliance-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.comp-item{background:var(--green-bg);border-left:3px solid var(--green);border-radius:6px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--green)}
+.footer{margin-top:40px;padding-top:12px;border-top:2px solid var(--brand-light);font-size:11px;color:var(--gray);display:flex;justify-content:space-between;align-items:center}
+@media print{@page{size:A4 portrait;margin:15mm 12mm}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.print-btn{display:none}}
+@media(max-width:700px){.grid-4,.grid-3{grid-template-columns:repeat(2,1fr)}.feature-grid{grid-template-columns:1fr}.compliance-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="page-header">
+  <div>
+    <h1>AI-генератор протоколов КИ</h1>
+    <div class="sub">Synthia MVP · FastAPI + React · Dokploy · InHouse/Qwen3.5-122B · v1.3.0</div>
+  </div>
+  <button class="print-btn" onclick="window.print()">Печать / PDF</button>
+</div>
+
+<div class="grid grid-4">
+  <div class="stat success"><div class="stat-value">137</div><div class="stat-label">Тестов passed</div></div>
+  <div class="stat"><div class="stat-value">12</div><div class="stat-label">Разделов протокола</div></div>
+  <div class="stat"><div class="stat-value">3</div><div class="stat-label">Роли пользователей</div></div>
+  <div class="stat"><div class="stat-value">4</div><div class="stat-label">Формата экспорта</div></div>
+</div>
+
+<hr>
+
+<h2>Что делает система</h2>
+<p style="font-size:14px;line-height:1.7;color:#374151;margin-bottom:16px">
+  Генерирует полные черновики протоколов клинических исследований на основе параметров препарата и терапевтической области. Соответствует GCP ICH E6(R2), GCP ЕАЭС, 61-ФЗ.
+</p>
+<div class="grid grid-3">
+  <div class="card"><div class="card-title">Ввод параметров</div><div class="card-body">Препарат, МНН, фаза I–III, показание, популяция, эндпоинты, критерии включения/исключения, теги, автодополнение</div></div>
+  <div class="card"><div class="card-title">AI-генерация</div><div class="card-body">12 секций + SAP + ICF через внутренний AI Gateway (Qwen3.5-122B). Fallback с заполненными данными при недоступности LLM</div></div>
+  <div class="card"><div class="card-title">Экспорт и аудит</div><div class="card-body">MD / HTML / DOCX / открытые вопросы CSV. Каждое действие (create, generate, export, approve) пишется в audit log с timestamp</div></div>
+</div>
+
+<hr>
+
+<h2>Ключевые функции</h2>
+<div class="feature-grid">
+  <div class="feat-row"><span class="pill info">Генерация</span><span class="feat-desc">Фазы I–III, 12 секций + Appendix SAP/ICF. Section-level перегенерация</span></div>
+  <div class="feat-row"><span class="pill info">Fallback</span><span class="feat-desc">При недоступном AI — уникальные шаблоны по каждому разделу с данными протокола</span></div>
+  <div class="feat-row"><span class="pill info">Versioning</span><span class="feat-desc">История версий с diff-сравнением. Архивирование старых версий</span></div>
+  <div class="feat-row"><span class="pill info">GCP-проверка</span><span class="feat-desc">Автоматическая consistency-проверка по GCP-правилам, открытые вопросы с severity</span></div>
+  <div class="feat-row"><span class="pill info">RBAC</span><span class="feat-desc">admin / employee / auditor. Read-only для аудитора, write-lock для одобренных</span></div>
+  <div class="feat-row"><span class="pill info">Audit log</span><span class="feat-desc">Каждое действие (create, update, generate, export, check) логируется в БД</span></div>
+  <div class="feat-row"><span class="pill info">Экспорт</span><span class="feat-desc">Markdown, HTML, DOCX. Открытые вопросы в JSON/CSV</span></div>
+  <div class="feat-row"><span class="pill info">Поиск и теги</span><span class="feat-desc">Полнотекстовый поиск, фильтры по фазе/статусу/области, цветные теги</span></div>
+</div>
+
+<hr>
+
+<h2>Стек</h2>
+<div class="grid-2">
+  <table>
+    <thead><tr><th colspan="2">Backend</th></tr></thead>
+    <tbody>
+      <tr><td>API</td><td>FastAPI + Python 3.12</td></tr>
+      <tr><td>ORM</td><td>SQLAlchemy async + asyncpg</td></tr>
+      <tr><td>Миграции</td><td>Alembic 001–005</td></tr>
+      <tr><td>БД</td><td>PostgreSQL 16, JSONB</td></tr>
+      <tr><td>LLM</td><td>InHouse/Qwen3.5-122B (AI Gateway)</td></tr>
+      <tr><td>Тесты</td><td>pytest-asyncio, httpx, 137 passed</td></tr>
+    </tbody>
+  </table>
+  <table>
+    <thead><tr><th colspan="2">Frontend / Infra</th></tr></thead>
+    <tbody>
+      <tr><td>Framework</td><td>React 18 + TypeScript</td></tr>
+      <tr><td>Сборка</td><td>Vite</td></tr>
+      <tr><td>Стили</td><td>Tailwind CSS</td></tr>
+      <tr><td>Роутинг</td><td>React Router v6</td></tr>
+      <tr><td>Сервер</td><td>nginx:alpine (SPA + /api proxy)</td></tr>
+      <tr><td>Деплой</td><td>Dokploy (Docker Compose)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<hr>
+
+<h2>Что сделано за 1.5 дня (14 сессий)</h2>
+<table>
+  <thead><tr><th>Сессия</th><th>Ключевые результаты</th></tr></thead>
+  <tbody>
+    <tr><td>1–4</td><td>Архитектура, БД-схема, базовый FastAPI + auth, Alembic миграции</td></tr>
+    <tr><td>5–7</td><td>AI Gateway интеграция, генератор 12 секций, prompt engineering</td></tr>
+    <tr><td>8–9</td><td>React UI: создание, просмотр, diff, аудит, экспорт, drag-and-drop теги</td></tr>
+    <tr><td>10</td><td>RAG Phase 1 (embeddings), 137 тестов, Dokploy-деплой</td></tr>
+    <tr><td>11</td><td>Фикс fallback-секций, edit-meta UI, отображение exclusion_criteria</td></tr>
+    <tr><td>12</td><td>SAP/ICF fallbacks, Phase IV удалена, export audit, AI Gateway endpoint fix</td></tr>
+    <tr><td>13</td><td>5 реальных протоколов BIOCAD (ct.biocad.ru), seed-скрипты, encoding fix</td></tr>
+    <tr><td>14</td><td>PDF print-стили, canvases в git, CHECKPOINT v14.0.0, RELEASE-NOTES v4.0.0</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>Соответствие требованиям</h2>
+<div class="compliance-grid">
+  <div class="comp-item">GCP ICH E6(R2)</div>
+  <div class="comp-item">GCP ЕАЭС</div>
+  <div class="comp-item">61-ФЗ</div>
+  <div class="comp-item">ALCOA++</div>
+  <div class="comp-item">NFR-08 (no external LLM)</div>
+  <div class="comp-item">RBAC 3 роли</div>
+</div>
+
+<div class="footer">
+  <span>Synthia AI Protocol Generator · v1.3.0 · CHECKPOINT v14.0.0 · 27.04.2026</span>
+  <button class="print-btn" onclick="window.print()">Печать / PDF</button>
+</div>
+
+</div>
+</body>
+</html>

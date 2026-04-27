@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Final Team Review — Synthia v1.3.0</title>
+<style>
+:root {
+  --brand: #0284c7; --brand-dark: #0c4a6e; --brand-light: #f0f9ff;
+  --green: #1F8A65; --green-bg: #f0faf5;
+  --orange: #d97706; --orange-bg: #fffbeb;
+  --red: #dc2626; --red-bg: #fef2f2;
+  --blue: #3685BF; --blue-bg: #eff6ff;
+  --gray: #6b7280; --border: #e5e7eb; --text: #111827;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; color: var(--text); background: #fff; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 32px 24px; }
+
+/* Header */
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid var(--brand); padding-bottom: 16px; margin-bottom: 28px; }
+.page-header h1 { font-size: 24px; font-weight: 800; color: var(--brand-dark); }
+.page-header .sub { font-size: 13px; color: var(--gray); margin-top: 4px; }
+.print-btn { background: var(--brand); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.print-btn:hover { background: var(--brand-dark); }
+
+/* Callout */
+.callout { border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+.callout-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.callout-body { font-size: 13px; line-height: 1.6; }
+.callout.success { background: var(--green-bg); border-left: 4px solid var(--green); }
+.callout.success .callout-title { color: var(--green); }
+.callout.warning { background: var(--orange-bg); border-left: 4px solid var(--orange); }
+.callout.warning .callout-title { color: var(--orange); }
+.callout.info { background: var(--blue-bg); border-left: 4px solid var(--blue); }
+.callout.info .callout-title { color: var(--blue); }
+
+/* Grid stats */
+.grid { display: grid; gap: 12px; margin-bottom: 16px; }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.stat { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+.stat-value { font-size: 28px; font-weight: 800; }
+.stat-label { font-size: 12px; color: var(--gray); margin-top: 2px; }
+.stat.success .stat-value { color: var(--green); }
+.stat.warning .stat-value { color: var(--orange); }
+.stat.info    .stat-value { color: var(--blue); }
+
+/* Section */
+.section { margin: 28px 0 12px; }
+h2 { font-size: 16px; font-weight: 700; color: var(--brand-dark); border-bottom: 2px solid var(--brand-light); padding-bottom: 6px; margin-bottom: 12px; }
+hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+/* Table */
+table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 8px; }
+thead tr { background: var(--brand); }
+th { color: #fff; padding: 8px 10px; text-align: left; font-weight: 600; }
+td { border: 1px solid var(--border); padding: 6px 10px; }
+tr:nth-child(even) td { background: #f8faff; }
+tr.tone-success td:first-child { border-left: 3px solid var(--green); }
+tr.tone-warning td:first-child { border-left: 3px solid var(--orange); }
+tr.tone-info    td:first-child { border-left: 3px solid var(--blue); }
+tr.tone-default td:first-child { border-left: 3px solid var(--gray); }
+
+/* OK badge */
+.badge { display: inline-block; padding: 1px 7px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge.ok { background: #dcfce7; color: #166534; }
+.badge.partial { background: #fef3c7; color: #92400e; }
+.badge.miss { background: #f3f4f6; color: #374151; }
+
+/* Bar chart */
+.barchart { display: flex; flex-direction: column; gap: 6px; }
+.bar-row { display: flex; align-items: center; gap: 10px; }
+.bar-label { font-size: 12px; color: var(--gray); width: 140px; flex-shrink: 0; text-align: right; }
+.bar-track { flex: 1; background: #f3f4f6; border-radius: 4px; height: 20px; }
+.bar-fill { background: var(--brand); height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; }
+.bar-fill span { font-size: 11px; font-weight: 700; color: #fff; }
+
+/* Role cards */
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.role-card { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+.role-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.role-name { font-size: 14px; font-weight: 700; color: var(--brand-dark); }
+.role-score { font-size: 13px; font-weight: 700; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+.pill.success { background: #dcfce7; color: #166534; }
+.pill.warning { background: #fef3c7; color: #92400e; }
+.role-plus { font-size: 12px; color: var(--green); }
+.role-minus { font-size: 12px; color: var(--gray); }
+
+/* Footer */
+.footer { margin-top: 40px; padding-top: 12px; border-top: 2px solid var(--brand-light); font-size: 11px; color: var(--gray); display: flex; justify-content: space-between; align-items: center; }
+
+@media print {
+  @page { size: A4 portrait; margin: 15mm 12mm; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .print-btn { display: none; }
+  .grid-4 { grid-template-columns: repeat(4,1fr); }
+  .grid-3 { grid-template-columns: repeat(3,1fr); }
+  .role-grid { grid-template-columns: 1fr 1fr; }
+  h2 { break-after: avoid; }
+  table { break-inside: auto; }
+}
+@media (max-width: 700px) {
+  .grid-4, .grid-3 { grid-template-columns: repeat(2,1fr); }
+  .role-grid { grid-template-columns: 1fr; }
+  .page-header { flex-direction: column; gap: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="page-header">
+    <div>
+      <h1>Final Team Review — Synthia v1.3.0</h1>
+      <div class="sub">AI Protocol Generator · Production · 27 апреля 2026 · Сессия 14 · CHECKPOINT v14.0.0</div>
+    </div>
+    <button class="print-btn" onclick="window.print()">Печать / PDF</button>
+  </div>
+
+  <div class="callout success">
+    <div class="callout-title">Вердикт: ЗАДЕПЛОЕНО — В ПРОДАКШНЕ</div>
+    <div class="callout-body">Средний балл 85/100. Тестов: 137/137 passed. Функционал: 100% реализован. На production-сайте: 15 протоколов. Критических блокеров нет.</div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-body">На production-сайте отображается 15 протоколов. В БД суммарно ~37 записей — часть seed-скриптов запускалась только локально. Для демонстрации релевантны 15 протоколов на сайте.</div>
+  </div>
+
+  <div class="grid grid-4">
+    <div class="stat success"><div class="stat-value">85/100</div><div class="stat-label">Средний балл команды</div></div>
+    <div class="stat success"><div class="stat-value">137/137</div><div class="stat-label">Тестов passed / total</div></div>
+    <div class="stat success"><div class="stat-value">3</div><div class="stat-label">Закрытых замечаний</div></div>
+    <div class="stat warning"><div class="stat-value">3</div><div class="stat-label">Открытых (backlog)</div></div>
+  </div>
+  <div class="grid grid-3">
+    <div class="stat success"><div class="stat-value">15</div><div class="stat-label">Протоколов на сайте (прод)</div></div>
+    <div class="stat info"><div class="stat-value">30+</div><div class="stat-label">API эндпоинтов</div></div>
+    <div class="stat info"><div class="stat-value">4</div><div class="stat-label">Формата экспорта</div></div>
+  </div>
+
+  <hr>
+
+  <h2>Тест-файлы (137 passed, 0 failed)</h2>
+  <table>
+    <thead><tr><th>Файл</th><th>Тестов</th><th>Тема</th></tr></thead>
+    <tbody>
+      <tr class="tone-success"><td>test_health.py</td><td>1</td><td>GET /health</td></tr>
+      <tr class="tone-success"><td>test_auth.py</td><td>12</td><td>Login, JWT, RBAC, whoami — credentials из env</td></tr>
+      <tr class="tone-success"><td>test_protocols.py</td><td>18</td><td>CRUD, versions, diff, copy, 4-eyes approve, lock</td></tr>
+      <tr class="tone-success"><td>test_export.py</td><td>5</td><td>MD / HTML / DOCX + open-issues JSON/CSV</td></tr>
+      <tr class="tone-success"><td>test_ai_gateway.py</td><td>5</td><td>Mock, retry, timeout, 503 fallback</td></tr>
+      <tr class="tone-success"><td>test_templates.py</td><td>4</td><td>List, get templates</td></tr>
+      <tr class="tone-success"><td>test_form_scenarios.py</td><td>51</td><td>Happy path, Negative, Security, RBAC, AI (крупнейший)</td></tr>
+      <tr class="tone-success"><td>test_realistic_scenarios.py</td><td>41</td><td>Сессия 11–12: SAP/ICF, edit meta, exclusion criteria, phase IV</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2>Матрица функционала</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Функционал</th><th>Тесты</th><th>Docs</th><th>Прод</th></tr></thead>
+    <tbody>
+      <tr class="tone-success"><td>FR-01</td><td>Шаблоны протоколов (Phase I/II/III)</td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td></tr>
+      <tr class="tone-success"><td>FR-02</td><td>Ввод параметров (9+ полей)</td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td></tr>
+      <tr class="tone-success"><td>FR-03</td><td>AI-генерация (12 секций)</td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td></tr>
+      <tr class="tone-success"><td>FR-04</td><td>Консистентность + GCP score</td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td></tr>
+      <tr class="tone-success"><td>FR-05</td><td>SAP / ICF артефакты</td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td></tr>
+      <tr class="tone-success"><td>FR-06</td><td>Версионирование + Diff UI</td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td></tr>
+      <tr class="tone-success"><td>FR-07</td><td>Экспорт MD/HTML/DOCX</td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td></tr>
+      <tr class="tone-success"><td>FR-08</td><td>Auth + RBAC (3 роли)</td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td></tr>
+      <tr class="tone-success"><td>FR-09</td><td>Governance (4-eyes, lock, copy)</td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td></tr>
+      <tr class="tone-warning"><td>FR-10</td><td>RAG Phase 1 (JSONB, бэкенд)</td><td><span class="badge ok">OK</span></td><td><span class="badge partial">~</span></td><td><span class="badge ok">OK</span></td></tr>
+      <tr class="tone-warning"><td>FR-11</td><td>BIOCAD парсинг (5 реальных КИ)</td><td><span class="badge miss">—</span></td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td></tr>
+      <tr class="tone-success"><td>NFR-08</td><td>InfoSec: только внутр. LLM</td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td><td><span class="badge ok">OK</span></td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2>Замечания — текущий статус</h2>
+  <table>
+    <thead><tr><th>ID</th><th>Область</th><th>Замечание</th><th>Статус</th></tr></thead>
+    <tbody>
+      <tr class="tone-warning"><td>I-01</td><td>Docs / api-spec</td><td>api-spec.md v1.6.0 не документирует /embeddings/* эндпоинты</td><td>Открыто — P1 backlog</td></tr>
+      <tr class="tone-success"><td>I-02</td><td>Docs / Encoding</td><td>VERSIONS.md + 5 файлов docs/ имели CP1251/BOM encoding issues</td><td>ИСПРАВЛЕНО (c9c51c5, 26.04)</td></tr>
+      <tr class="tone-warning"><td>I-03</td><td>InfoSec</td><td>corecase.md содержал plain-text третьесторонний API-токен</td><td>Токен устарел/нерабочий; corecase.md — внутренний файл, не в git</td></tr>
+      <tr class="tone-success"><td>I-04</td><td>Deploy</td><td>Требовался Dokploy redeploy после миграций 004–005 и новых роутеров</td><td>ВЫПОЛНЕНО — 37 протоколов в проде, /health healthy</td></tr>
+      <tr class="tone-info"><td>I-05</td><td>QA / import order</td><td>pytest_asyncio импортировался после первого использования fixture</td><td>Несущественно — тесты 137/137 passed</td></tr>
+      <tr class="tone-info"><td>I-06</td><td>QA / Coverage</td><td>Нет теста: export → GET /{id}/audit → проверить action="export"</td><td>Открыто — P1 backlog</td></tr>
+      <tr class="tone-success"><td>I-07</td><td>Docs / README</td><td>README ссылался на .env.example</td><td>ЗАКРЫТО — .env.example v1.0.0 существует в репо (2026-04-23)</td></tr>
+      <tr class="tone-warning"><td>I-08</td><td>POST-DEADLINE</td><td>11 коммитов добавлены после дедлайна 24.04.2026 17:30</td><td>Задокументировано с маркерами в RELEASE-NOTES v4.0.0, CHECKPOINT §17</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2>План действий</h2>
+  <table>
+    <thead><tr><th>#</th><th>Действие</th><th>Приоритет</th><th>Статус</th></tr></thead>
+    <tbody>
+      <tr class="tone-success"><td>1</td><td>git push → Dokploy redeploy + alembic upgrade head</td><td>P0</td><td>ВЫПОЛНЕНО</td></tr>
+      <tr class="tone-success"><td>2</td><td>Smoke-тест /health, /auth, /generate, /export на prod URL</td><td>P0</td><td>ВЫПОЛНЕНО</td></tr>
+      <tr class="tone-success"><td>3</td><td>Исправить VERSIONS.md encoding (UTF-8 без BOM)</td><td>P1</td><td>ВЫПОЛНЕНО (c9c51c5)</td></tr>
+      <tr class="tone-success"><td>4</td><td>Документировать post-deadline изменения с маркерами</td><td>P1</td><td>ВЫПОЛНЕНО</td></tr>
+      <tr class="tone-success"><td>5</td><td>Добавить парсинг реальных протоколов BIOCAD</td><td>P1</td><td>ВЫПОЛНЕНО (a68cf57)</td></tr>
+      <tr class="tone-default"><td>6</td><td>Обновить api-spec.md → v1.7.0 (/embeddings/*)</td><td>P2</td><td>Backlog</td></tr>
+      <tr class="tone-default"><td>7</td><td>Добавить тест: export → audit log action="export"</td><td>P2</td><td>Backlog</td></tr>
+      <tr class="tone-default"><td>8</td><td>RAG UI: страница похожих протоколов</td><td>P3</td><td>Backlog</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2>Оценка по ролям</h2>
+  <div class="barchart" style="margin-bottom:20px">
+    <div class="bar-row"><div class="bar-label">System Architect</div><div class="bar-track"><div class="bar-fill" style="width:91%"><span>91</span></div></div></div>
+    <div class="bar-row"><div class="bar-label">Backend Dev</div><div class="bar-track"><div class="bar-fill" style="width:90%"><span>90</span></div></div></div>
+    <div class="bar-row"><div class="bar-label">Frontend Dev</div><div class="bar-track"><div class="bar-fill" style="width:86%"><span>86</span></div></div></div>
+    <div class="bar-row"><div class="bar-label">DevOps</div><div class="bar-track"><div class="bar-fill" style="width:85%"><span>85</span></div></div></div>
+    <div class="bar-row"><div class="bar-label">InfoSec</div><div class="bar-track"><div class="bar-fill" style="width:85%"><span>85</span></div></div></div>
+    <div class="bar-row"><div class="bar-label">Tech Writer</div><div class="bar-track"><div class="bar-fill" style="width:84%"><span>84</span></div></div></div>
+    <div class="bar-row"><div class="bar-label">QA Engineer</div><div class="bar-track"><div class="bar-fill" style="width:82%"><span>82</span></div></div></div>
+    <div class="bar-row"><div class="bar-label">Clinical Analyst</div><div class="bar-track"><div class="bar-fill" style="width:80%"><span>80</span></div></div></div>
+  </div>
+
+  <div class="role-grid">
+    <div class="role-card"><div class="role-card-header"><div class="role-name">System Architect</div><div><span class="role-score">91/100</span><span class="pill success">Готов</span></div></div></div>
+    <div class="role-card"><div class="role-card-header"><div class="role-name">Backend Dev</div><div><span class="role-score">90/100</span><span class="pill success">Готов</span></div></div></div>
+    <div class="role-card"><div class="role-card-header"><div class="role-name">Frontend Dev</div><div><span style="font-size:12px;color:var(--green);margin-right:4px">+2</span><span class="role-score">86/100</span><span class="pill success">Готов</span></div></div></div>
+    <div class="role-card"><div class="role-card-header"><div class="role-name">QA Engineer</div><div><span class="role-score">82/100</span><span class="pill success">Готов</span></div></div></div>
+    <div class="role-card"><div class="role-card-header"><div class="role-name">DevOps</div><div><span style="font-size:12px;color:var(--green);margin-right:4px">+2</span><span class="role-score">85/100</span><span class="pill success">Готов</span></div></div></div>
+    <div class="role-card"><div class="role-card-header"><div class="role-name">Clinical Analyst</div><div><span style="font-size:12px;color:var(--green);margin-right:4px">+2</span><span class="role-score">80/100</span><span class="pill success">Готов</span></div></div></div>
+    <div class="role-card"><div class="role-card-header"><div class="role-name">InfoSec</div><div><span class="role-score">85/100</span><span class="pill success">Готов</span></div></div></div>
+    <div class="role-card"><div class="role-card-header"><div class="role-name">Tech Writer</div><div><span style="font-size:12px;color:var(--green);margin-right:4px">+4</span><span class="role-score">84/100</span><span class="pill success">Готов</span></div></div></div>
+  </div>
+
+  <hr>
+
+  <h2>POST-DEADLINE сводка</h2>
+  <table>
+    <thead><tr><th>Коммит</th><th>Дата</th><th>Что изменилось</th></tr></thead>
+    <tbody>
+      <tr class="tone-warning"><td>168eeb5</td><td>24.04 17:00</td><td>fix(ai-gateway): убран hardcoded /v1 prefix</td></tr>
+      <tr class="tone-warning"><td>8769581</td><td>24.04 17:18</td><td>fix(login): emp123 / aud123 (пароли демо-пользователей)</td></tr>
+      <tr class="tone-warning"><td>5ed5464</td><td>26.04</td><td>feat(seed): seed_10_protocols, update_biocad_tags, PROJECT-SUMMARY</td></tr>
+      <tr class="tone-warning"><td>c387a84</td><td>26.04</td><td>fix(frontend): cancelled flag + location.replace на 401</td></tr>
+      <tr class="tone-warning"><td>a68cf57</td><td>26.04</td><td>feat(seed): 5 реальных протоколов BIOCAD (ct.biocad.ru)</td></tr>
+      <tr class="tone-warning"><td>8f249e3</td><td>26.04</td><td>docs(checkpoint): v14.0.0 — сессия 14, 37 протоколов в проде</td></tr>
+      <tr class="tone-warning"><td>c9c51c5</td><td>26.04</td><td>fix(encoding): CP1251/BOM → UTF-8, rewrite VERSIONS.md</td></tr>
+      <tr class="tone-warning"><td>da2083f</td><td>27.04</td><td>docs: RELEASE-NOTES v4.0.0 + PROJECT-SUMMARY актуализированы</td></tr>
+      <tr class="tone-warning"><td>5bec271</td><td>27.04</td><td>docs: уточнение — 15 протоколов на сайте vs ~37 total в БД</td></tr>
+      <tr class="tone-warning"><td>4173ed3</td><td>27.04</td><td>feat(canvases): canvases/ в репо + PDF print-стили DraftModal</td></tr>
+      <tr class="tone-warning"><td>79496ef</td><td>27.04</td><td>fix(canvases): fix BarChart API в 3 canvas</td></tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <span>Synthia AI Protocol Generator · CHECKPOINT v14.0.0 · HEAD: 79496ef · GitLab + GitHub origin/master</span>
+    <button class="print-btn" onclick="window.print()">Печать / PDF</button>
+  </div>
+
+</div>
+</body>
+</html>
